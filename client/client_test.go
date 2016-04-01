@@ -13,14 +13,12 @@ func TestPostTasks(t *testing.T) {
 
 	c := New(key)
 
-	err := c.PostTask("foo")
+	_, err := c.PostTask("foo")
 	if err != nil {
 		t.Error(err)
-		//fmt.Println(err)
 	}
-	err = c.PostTask("bar")
+	_, err = c.PostTask("bar")
 	if err != nil {
 		t.Error(err)
-		//fmt.Println(err)
 	}
 }

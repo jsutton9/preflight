@@ -50,7 +50,7 @@ func (e ApiError) Error() string {
 	)
 }
 
-func (c Client) PostTask(task string) error {
+func (c Client) PostTask(task string) (string, error) {
 	uuid := strconv.FormatInt(rand.Int63(), 16)
 	tempId := strconv.FormatInt(rand.Int63(), 16)
 	cmd := command{
@@ -66,7 +66,7 @@ func (c Client) PostTask(task string) error {
 
 	response, err := http.Post(request, "", strings.NewReader(""))
 	if err != nil {
-		return err
+		return uuid, err
 	}
 	body := make([]byte, 10000)
 	response.Body.Read(body)
@@ -76,12 +76,12 @@ func (c Client) PostTask(task string) error {
 	syncStatusOk, _ := regexp.Match(pattern, body)
 
 	if (response.StatusCode != 200) || (! syncStatusOk) {
-		return ApiError{
+		return uuid, ApiError{
 			Command:      "item_add " + task,
 			Status:       response.Status,
 			ResponseBody: string(body),
 		}
 	}
 
-	return nil
+	return uuid, nil
 }
