@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"time"
 )
 
 type Config struct {
@@ -16,7 +17,7 @@ type Template struct {
 }
 
 type schedule struct {
-	Interval string  `json:"interval,omitempty"`
+	Interval int     `json:"interval,omitempty"`
 	Days []string    `json:"days,omitempty"`
 	Start string     `json:"start_time"`
 	End string       `json:"end_time,omitempty"`
@@ -34,48 +35,73 @@ func New(filename string) Config, error {
 		return config, err
 	}
 
-	/*for name, template := range config.Templates {
-		if err = template.Schedule.Validate(name) {
-			return config, err
-		}
-	}*/
-
 	return config, nil
 }
 
-func (t Template) Action(lastUpdate time.Time) string {
-	s := t.Schedule
-	if s == nil {
-		return nil
-	}
-	//TODO
+func (t Template) Action(lastUpdate time.Time) string, error {
+	return t.Schedule.Action(lastUpdate)
 }
 
-/*func (s Schedule) Validate(name string) error {
+func (s Schedule) Action(lastUpdate time.Time) string, error {
 	if s == nil {
-		return nil
+		return nil, nil
 	}
 
-	if s.Start == nil {
-		return errors.New("Invalid config for template \""+name+"\": "+
-		"schedule must have start_time")
-	} else {
-		_, err = time.Parse("15:04 MST", s.Start)
-		if err != nil {
-			return errors.New("Invalid config for template \""+name+"\": "+
-			"start_time must be formatted like \"15:04 MST\"")
-		}
+	now := time.Now()
+
+	start, err := time.Parse("15:04 MST", s.Start)
+	if err != nil {
+		return nil, err
 	}
 
+	var end time.Time
 	if s.End != nil {
-		_, err = time.Parse("15:04 MST", s.End)
+		end, err = time.Parse("15:04 MST", s.End)
 		if err != nil {
-			return errors.New("Invalid config for template \""+name+"\": "+
-			"end_time must be formatted like \"15:04 MST\"")
+			return nil, err
 		}
 	}
 
-	if s.
+	var scheduledToday bool
+	var scheduledLast bool
+	if s.Days != nil {
+		currentWeekday := now.Weekday().String()
+		scheduledToday = false
+		for _, weekday := range s.Days {
+			if weekday == currentWeekday {
+				scheduledToday = true
+				break
+			}
+		}
+		lastWeekday := lastUpdate.Weekday().String()
+		if lastWeekday == currentWeekday {
+			scheduledLast = scheduledToday
+		} else {
+			scheduledLast = false
+			for _, weekday := range s.Days {
+				if weekday == lastWeekday {
+					scheduledLast = true
+					break
+				}
+			}
+		}
+	}
 
-	return nil
-}*/ //TODO: integrate validation into Template.Action
+	var y, m, d int
+	if scheduledToday {
+		y, m, d = now.Date()
+	} else if scheduledLast {
+		y, m, d = lastUpdate.Date()
+	} else {
+		y, m, d = lastUpdate.Date()
+		d -= 1
+	}
+
+	start = start.addDate(y, m, d)
+	if end != nil {
+		end = end.addDate(y, m, d)
+	}
+
+	//TODO: determine last target state and current target state based on start and end
+	//TODO: return action
+}
