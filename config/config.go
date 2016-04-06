@@ -42,12 +42,11 @@ func (t Template) Action(lastUpdate time.Time) string, error {
 	return t.Schedule.Action(lastUpdate)
 }
 
-func (s Schedule) Action(lastUpdate time.Time) string, error {
+func (s Schedule) Action(lastUpdate time.Time, now time.Time) string, error {
+	//TODO: move some of this in to func (s Schedule) targetState(t time.Time) bool
 	if s == nil {
 		return nil, nil
 	}
-
-	now := time.Now()
 
 	start, err := time.Parse("15:04 MST", s.Start)
 	if err != nil {
@@ -60,6 +59,8 @@ func (s Schedule) Action(lastUpdate time.Time) string, error {
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		end = time.Date(3000, 1, 1, 0, 0, 0, 0, now.Location())
 	}
 
 	var scheduledToday bool
@@ -73,18 +74,25 @@ func (s Schedule) Action(lastUpdate time.Time) string, error {
 				break
 			}
 		}
-		lastWeekday := lastUpdate.Weekday().String()
-		if lastWeekday == currentWeekday {
-			scheduledLast = scheduledToday
-		} else {
+		if lastUpdate == nil {
 			scheduledLast = false
-			for _, weekday := range s.Days {
-				if weekday == lastWeekday {
-					scheduledLast = true
-					break
+		} else {
+			lastWeekday := lastUpdate.Weekday().String()
+			if lastWeekday == currentWeekday {
+				scheduledLast = scheduledToday
+			} else {
+				scheduledLast = false
+				for _, weekday := range s.Days {
+					if weekday == lastWeekday {
+						scheduledLast = true
+						break
+					}
 				}
 			}
 		}
+	} else {
+		scheduledToday = true
+		scheduledLast = true
 	}
 
 	var y, m, d int
@@ -92,16 +100,30 @@ func (s Schedule) Action(lastUpdate time.Time) string, error {
 		y, m, d = now.Date()
 	} else if scheduledLast {
 		y, m, d = lastUpdate.Date()
-	} else {
+	} else if lastUpdate != nil {
 		y, m, d = lastUpdate.Date()
+		d -= 1
+	} else {
+		y, m, d = now.Date()
 		d -= 1
 	}
 
 	start = start.addDate(y, m, d)
-	if end != nil {
-		end = end.addDate(y, m, d)
-	}
+	end = end.addDate(y, m, d)
 
-	//TODO: determine last target state and current target state based on start and end
-	//TODO: return action
+	if lastUpdate.Before(start) {
+		if now.After(start) && now.Before(end) {
+			return "add", nil
+		} else {
+			return nil, nil
+		}
+	} else if lastUpdate.Before(end) {
+		if now.After(end) {
+			return "delete", nil
+		} else {
+			return nil, nil
+		}
+	} else {
+		return nil, nil
+	}
 }
