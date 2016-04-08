@@ -42,11 +42,30 @@ func (t Template) Action(lastUpdate time.Time) string, error {
 	return t.Schedule.Action(lastUpdate)
 }
 
-func (s Schedule) Action(lastUpdate time.Time, now time.Time) string, error {
-	//TODO: move some of this in to func (s Schedule) targetState(t time.Time) bool
-	if s == nil {
-		return nil, nil
+func (s Schedule) targetState(t time.Time) bool, error {
+	var scheduledDay bool
+	if s.Days != nil {
+		currentWeekday := t.Weekday().String()
+		scheduledDay = false
+		for _, weekday := range s.Days {
+			if weekday == currentWeekday {
+				scheduledDay = true
+				break
+			}
+		}
+	} else {
+		scheduledDay = true
 	}
+
+	if ! scheduledDay {
+		if s.End == nil {
+			return true, nil
+		} else {
+			return false, nil
+		}
+	}
+
+	y, m, d = t.getDate()
 
 	start, err := time.Parse("15:04 MST", s.Start)
 	if err != nil {
@@ -60,70 +79,36 @@ func (s Schedule) Action(lastUpdate time.Time, now time.Time) string, error {
 			return nil, err
 		}
 	} else {
-		end = time.Date(3000, 1, 1, 0, 0, 0, 0, now.Location())
+		end = time.Date(3000, 1, 1, 0, 0, 0, 0, t.Location())
 	}
 
-	var scheduledToday bool
-	var scheduledLast bool
-	if s.Days != nil {
-		currentWeekday := now.Weekday().String()
-		scheduledToday = false
-		for _, weekday := range s.Days {
-			if weekday == currentWeekday {
-				scheduledToday = true
-				break
-			}
-		}
-		if lastUpdate == nil {
-			scheduledLast = false
-		} else {
-			lastWeekday := lastUpdate.Weekday().String()
-			if lastWeekday == currentWeekday {
-				scheduledLast = scheduledToday
-			} else {
-				scheduledLast = false
-				for _, weekday := range s.Days {
-					if weekday == lastWeekday {
-						scheduledLast = true
-						break
-					}
-				}
-			}
-		}
+	if t.After(start) && t.Before(end) {
+		return true, nil
 	} else {
-		scheduledToday = true
-		scheduledLast = true
+		return false, nil
 	}
+}
 
-	var y, m, d int
-	if scheduledToday {
-		y, m, d = now.Date()
-	} else if scheduledLast {
-		y, m, d = lastUpdate.Date()
-	} else if lastUpdate != nil {
-		y, m, d = lastUpdate.Date()
-		d -= 1
-	} else {
-		y, m, d = now.Date()
-		d -= 1
-	}
 
-	start = start.addDate(y, m, d)
-	end = end.addDate(y, m, d)
-
-	if lastUpdate.Before(start) {
-		if now.After(start) && now.Before(end) {
-			return "add", nil
-		} else {
-			return nil, nil
-		}
-	} else if lastUpdate.Before(end) {
-		if now.After(end) {
-			return "delete", nil
-		} else {
-			return nil, nil
-		}
-	} else {
+func (s Schedule) Action(lastUpdate time.Time, now time.Time) int, error {
+	if s == nil {
 		return nil, nil
+	}
+
+	targetNow, err := s.targetState(now)
+	if err != nil {
+		return nil, err
+	}
+	targetLast, err := s.targetState(lastUpdate)
+	if err != nil {
+		return nil, err
+	}
+
+	if (! targetLast) && targetNow {
+		return 1, nil
+	} else if targetLast && (! targetNow) {
+		return -1, nil
+	} else {
+		return 0, nil
 	}
 }
