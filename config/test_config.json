@@ -1,5 +1,6 @@
 {
 "api_token": "abcd1234",
+"timezone": "America/Denver",
 "templates": {
 	"daily": {
 		"tasks": [
@@ -8,7 +9,7 @@
 			"baz"
 		],
 		"schedule": {
-			"start": "9:00 MST"
+			"start": "9:00"
 		}
 	},
 
@@ -19,8 +20,8 @@
 			"three"
 		],
 		"schedule": {
-			"start": "9:00 MST",
-			"end": "17:00 MST"
+			"start": "9:00",
+			"end": "17:00"
 		}
 	},
 
@@ -35,7 +36,7 @@
 				"Wednesday", 
 				"Friday"
 			],
-			"start": "9:00 MST"
+			"start": "9:00"
 		}
 	},
 
@@ -48,8 +49,9 @@
 				"Wednesday",
 				"Friday"
 			],
-			"start": "9:00 MST",
-			"end": "17:00 MST"
+			"start": "9:00",
+			"end": "17:00"
 		}
 	}
+}
 }

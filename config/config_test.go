@@ -5,15 +5,35 @@ import (
 	"time"
 )
 
-func positiveActionTest(test *testing.T, t Template, last time.Time,
-		now time.Time, correctAction Action) {
+func actionTest(test *testing.T, t Template, last time.Time,
+		now time.Time, correctAction int) {
+	action, err := t.Action(last, now)
+	if err != nil {
+		test.Error(err)
+	} else if action != correctAction {
+		test.Log("test failure: ")
+		test.Logf("\tlast: %s\n", last.String())
+		test.Logf("\tnow: %s\n", now.String())
+		test.Logf("\texpected %d, got %d\n", correctAction, action)
+		test.Fail()
+	}
 }
 
 func negativeActionTest(test *testing.T, t Template, last time.Time,
-		now time.Time, incorrectAction Action) {
+		now time.Time, incorrectAction int) {
+	action, err := t.Action(last, now)
+	if err != nil {
+		test.Error(err)
+	} else if action == incorrectAction {
+		test.Log("negative test failure: ")
+		test.Logf("\tlast: %s\n", last.String())
+		test.Logf("\tnow: %s\n", now.String())
+		test.Logf("\taction: %d\n", action)
+		test.Fail()
+	}
 }
 
-func TestConfig(test *testing.T) {
+func TestConfigScheduling(test *testing.T) {
 	conf, err := New("test_config.json")
 	if err != nil {
 		test.Fatal(err)
@@ -24,43 +44,99 @@ func TestConfig(test *testing.T) {
 	weekdays := conf.Templates["weekdays"]
 	weekdaysEnd := conf.Templates["weekdays_end"]
 
-	format := "2006-01-02 15:04:05 MST"
-	mondayMorning  := time.Parse(format, "2016-04-04 01:00:00 MST")
-	mondayNoon     := time.Parse(format, "2016-04-04 12:00:00 MST")
-	mondayEvening  := time.Parse(format, "2016-04-04 23:00:00 MST")
-	tuesdayMorning := time.Parse(format, "2016-04-05 01:00:00 MST")
-	tuesdayNoon    := time.Parse(format, "2016-04-05 12:00:00 MST")
-	tuesdayEvening := time.Parse(format, "2016-04-05 23:00:00 MST")
-	wednesdayMorning := time.Parse(format, "2016-04-06 01:00:00 MST")
-	wednesdayEvening := time.Parse(format, "2016-04-06 23:00:00 MST")
+	format := "2006-01-02 15:04:05"
+	location, err := time.LoadLocation(conf.Timezone)
+	if err != nil {
+		test.Fatal(err)
+	}
+	mondayMorning, err    := time.ParseInLocation(format, "2016-04-04 01:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+	mondayNoon, err       := time.ParseInLocation(format, "2016-04-04 12:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+	mondayEvening, err    := time.ParseInLocation(format, "2016-04-04 23:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+	tuesdayMorning, err   := time.ParseInLocation(format, "2016-04-05 01:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+	tuesdayNoon, err      := time.ParseInLocation(format, "2016-04-05 12:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+	tuesdayEvening, err   := time.ParseInLocation(format, "2016-04-05 23:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+	wednesdayMorning, err := time.ParseInLocation(format, "2016-04-06 01:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+	wednesdayNoon, err    := time.ParseInLocation(format, "2016-04-06 12:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+	wednesdayEvening, err := time.ParseInLocation(format, "2016-04-06 23:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
 
-	positiveActionTest(test, daily, mondayMorning, mondayMorning, 0)
-	positiveActionTest(test, daily, mondayMorning, mondayNoon, 1)
-	positiveActionTest(test, daily, mondayMorning, tuesdayMorning, 1)
-	positiveActionTest(test, daily, mondayEvening, mondayEvening, 0)
+	test.Log("testing daily")
+	actionTest(test, daily, mondayMorning, mondayMorning, 0)
+	actionTest(test, daily, mondayMorning, mondayNoon, 1)
+	actionTest(test, daily, mondayMorning, tuesdayMorning, 1)
+	actionTest(test, daily, mondayEvening, mondayEvening, 0)
+	test.Log("")
 
-	positiveActionTest(test, dailyEnd, mondayMorning, mondayMorning, 0)
-	positiveActionTest(test, dailyEnd, mondayMorning, mondayNoon, 1)
+	test.Log("testing dailyEnd")
+	actionTest(test, dailyEnd, mondayMorning, mondayMorning, 0)
+	actionTest(test, dailyEnd, mondayMorning, mondayNoon, 1)
 	negativeActionTest(test, dailyEnd, mondayMorning, mondayEvening, 1)
-	positiveActionTest(test, dailyEnd, mondayMorning, tuesdayNoon, 1)
-	positiveActionTest(test, dailyEnd, mondayMorning, tuesdayEvening, -1)
-	positiveActionTest(test, dailyEnd, mondayNoon, mondayNoon, 0)
-	positiveActionTest(test, dailyEnd, mondayNoon, mondayEvening, -1)
-	positiveActionTest(test, dailyEnd, mondayNoon, tuesdayMorning, -1)
-	positiveActionTest(test, dailyEnd, mondayNoon, tuesdayEvening, -1)
-	positiveActionTest(test, dailyEnd, mondayEvening, mondayEvening, 0)
-	positiveActionTest(test, dailyEnd, mondayEvening, tuesdayNoon, 1)
+	actionTest(test, dailyEnd, mondayMorning, tuesdayNoon, 1)
+	actionTest(test, dailyEnd, mondayMorning, tuesdayEvening, -1)
+	actionTest(test, dailyEnd, mondayNoon, mondayNoon, 0)
+	actionTest(test, dailyEnd, mondayNoon, mondayEvening, -1)
+	actionTest(test, dailyEnd, mondayNoon, tuesdayMorning, -1)
+	actionTest(test, dailyEnd, mondayNoon, tuesdayEvening, -1)
+	actionTest(test, dailyEnd, mondayEvening, mondayEvening, 0)
+	actionTest(test, dailyEnd, mondayEvening, tuesdayNoon, 1)
 	negativeActionTest(test, dailyEnd, mondayEvening, tuesdayEvening, 1)
+	test.Log("")
 
-	positiveActionTest(test, weekdays, mondayMorning, mondayMorning, 0)
-	positiveActionTest(test, weekdays, mondayMorning, mondayNoon, 1)
-	positiveActionTest(test, weekdays, mondayMorning, tuesdayMorning, 1)
-	positiveActionTest(test, weekdays, mondayMorning, tuesdayEvening, 1)
-	positiveActionTest(test, weekdays, mondayEvening, mondayEvening, 0)
-	positiveActionTest(test, weekdays, mondayEvening, tuesdayMorning, 0)
-	positiveActionTest(test, weekdays, mondayEvening, tuesdayEvening, 0)
-	positiveActionTest(test, weekdays, tuesdayMorning, wednesdayMorning, 0)
-	positiveActionTest(test, weekdays, tuesdayMorning, wednesdayEvening, 1)
-	positiveActionTest(test, weekdays, tuesdayEvening, wednesdayEvening, 1)
+	test.Log("testing weekdays")
+	actionTest(test, weekdays, mondayMorning, mondayMorning, 0)
+	actionTest(test, weekdays, mondayMorning, mondayNoon, 1)
+	actionTest(test, weekdays, mondayMorning, tuesdayMorning, 1)
+	actionTest(test, weekdays, mondayMorning, tuesdayEvening, 1)
+	actionTest(test, weekdays, mondayEvening, mondayEvening, 0)
+	actionTest(test, weekdays, mondayEvening, tuesdayMorning, 0)
+	actionTest(test, weekdays, mondayEvening, tuesdayEvening, 0)
+	actionTest(test, weekdays, tuesdayMorning, wednesdayMorning, 0)
+	actionTest(test, weekdays, tuesdayMorning, wednesdayEvening, 1)
+	actionTest(test, weekdays, tuesdayEvening, wednesdayEvening, 1)
+	test.Log("")
 
-	positiveActionTest(test, weekdaysEnd, mondayMorning, mondayMorning, 0)
+	test.Log("testing weekdaysEnd")
+	actionTest(test, weekdaysEnd, mondayMorning, mondayMorning, 0)
+	actionTest(test, weekdaysEnd, mondayMorning, mondayNoon, 1)
+	negativeActionTest(test, weekdaysEnd, mondayMorning, tuesdayMorning, 1)
+	negativeActionTest(test, weekdaysEnd, mondayMorning, tuesdayEvening, 1)
+	actionTest(test, weekdaysEnd, mondayNoon, mondayNoon, 0)
+	actionTest(test, weekdaysEnd, mondayNoon, mondayNoon, 0)
+	actionTest(test, weekdaysEnd, mondayNoon, mondayEvening, -1)
+	actionTest(test, weekdaysEnd, mondayNoon, tuesdayNoon, -1)
+	actionTest(test, weekdaysEnd, mondayEvening, mondayEvening, 0)
+	actionTest(test, weekdaysEnd, mondayEvening, tuesdayNoon, 0)
+	actionTest(test, weekdaysEnd, mondayEvening, wednesdayMorning, 0)
+	actionTest(test, weekdaysEnd, mondayEvening, wednesdayNoon, 1)
+	actionTest(test, weekdaysEnd, tuesdayNoon, tuesdayNoon, 0)
+	actionTest(test, weekdaysEnd, tuesdayNoon, wednesdayMorning, 0)
+	actionTest(test, weekdaysEnd, tuesdayNoon, wednesdayNoon, 1)
+	negativeActionTest(test, weekdaysEnd, tuesdayNoon, wednesdayEvening, 1)
+	test.Log("")
+}

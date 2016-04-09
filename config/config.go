@@ -3,27 +3,29 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"time"
 )
 
 type Config struct {
 	ApiToken string               `json:"api_token"`
+	Timezone string               `json:"timezone",omitempty`
 	Templates map[string]Template `json:"templates"`
 }
 
 type Template struct {
 	Tasks []string    `json:"tasks"`
-	Schedule schedule `json:"schedule,omitempty"`
+	Schedule *schedule `json:"schedule,omitempty"`
 }
 
 type schedule struct {
 	//Interval int     `json:"interval,omitempty"`
 	Days []string    `json:"days,omitempty"`
-	Start string     `json:"start_time"`
-	End string       `json:"end_time,omitempty"`
+	Start string     `json:"start"`
+	End string       `json:"end,omitempty"`
 }
 
-func New(filename string) Config, error {
+func New(filename string) (*Config, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -32,87 +34,13 @@ func New(filename string) Config, error {
 	config := Config{}
 	err = json.Unmarshal(data, &config)
 	if err != nil {
-		return config, err
+		return &config, err
 	}
 
-	return config, nil
+	return &config, nil
 }
 
-func (t Template) Action(lastUpdate time.Time, now time.Time) int, error {
-	return t.Schedule.Action(lastUpdate, now)
-}
-
-/*func (s Schedule) targetState(t time.Time) bool, error {
-	var scheduledDay bool
-	if s.Days != nil {
-		currentWeekday := t.Weekday().String()
-		scheduledDay = false
-		for _, weekday := range s.Days {
-			if weekday == currentWeekday {
-				scheduledDay = true
-				break
-			}
-		}
-	} else {
-		scheduledDay = true
-	}
-
-	if ! scheduledDay {
-		if s.End == nil {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	}
-
-	y, m, d = t.getDate()
-
-	start, err := time.Parse("15:04 MST", s.Start)
-	if err != nil {
-		return nil, err
-	}
-
-	var end time.Time
-	if s.End != nil {
-		end, err = time.Parse("15:04 MST", s.End)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		end = time.Date(3000, 1, 1, 0, 0, 0, 0, t.Location())
-	}
-
-	if t.After(start) && t.Before(end) {
-		return true, nil
-	} else {
-		return false, nil
-	}
-}
-
-func (s Schedule) Action(lastUpdate time.Time, now time.Time) int, error {
-	if s == nil {
-		return nil, nil
-	}
-
-	targetNow, err := s.targetState(now)
-	if err != nil {
-		return nil, err
-	}
-	targetLast, err := s.targetState(lastUpdate)
-	if err != nil {
-		return nil, err
-	}
-
-	if (! targetLast) && targetNow {
-		return 1, nil
-	} else if targetLast && (! targetNow) {
-		return -1, nil
-	} else {
-		return 0, nil
-	}
-}*/
-
-func parseWeekday(s String) Weekday, error {
+func parseWeekday(s string) (time.Weekday, error) {
 	switch s {
 	case "Sunday", "sunday", "Sun", "sun":
 		return time.Sunday, nil
@@ -129,69 +57,78 @@ func parseWeekday(s String) Weekday, error {
 	case "Saturday", "saturday", "Sat", "sat":
 		return time.Saturday, nil
 	default:
-		return nil, errors.New(
-			"Unable to parse day of the week \"%s\"", s)
+		return time.Sunday, errors.New(
+			"Unable to parse day of the week \""+s+"\"")
 	}
 }
 
 //TODO: every n days (schedule.Interval)
-func (s Schedule) Action(lastUpdate time.Time, now time.Time) int, error {
+func (s *schedule) Action(lastUpdate time.Time, now time.Time) (int, error) {
 	if s == nil {
 		return 0, nil
 	}
 
 	var scheduledToday bool
-	minWeekdayDelta := 7
+	lastScheduledDelta := 7
 	if s.Days != nil {
 		scheduledToday = false
-		currentWeekday := t.Weekday()
+		currentWeekday := now.Weekday()
 		for _, weekdayString := range s.Days {
 			weekday, err := parseWeekday(weekdayString)
 			if err != nil {
-				return _, err
+				return 0, err
 			}
-			weekdayDelta := (currentWeekday-weekday)%7
+			weekdayDelta := int(currentWeekday-weekday)
+			if weekdayDelta < 0 {
+				weekdayDelta += 7
+			}
 			if weekdayDelta == 0 {
 				scheduledToday = true
-			} else if weekdayDelta < minWeekdayDelta {
-				minWeekdayDelta = weekdayDelta
+			} else if weekdayDelta < lastScheduledDelta {
+				lastScheduledDelta = weekdayDelta
 			}
 		}
 	} else {
 		scheduledToday = true
-		minWeekdayDelta = 1
+		lastScheduledDelta = 1
 	}
 
-	y, m, d := now.getDate()
+	y, m, d := now.Date()
+	location := now.Location()
+	if ! scheduledToday {
+		d -= lastScheduledDelta
+	}
 
-	lastStart := time.Parse("15:04 MST", s.Start)
-	lastStart.AddDate(y, m, d)
-	if lastStart.After(now) {
-		lastStart.AddDate(0, 0, -minWeekdayDelta)
+	startTime, err := time.ParseInLocation("15:04", s.Start, location)
+	if err != nil {
+		return 0, err
+	}
+	lastStart := time.Date(y, m, d, startTime.Hour(), startTime.Minute(), 0, 0, location)
+	if scheduledToday && lastStart.After(now) {
+		lastStart = lastStart.AddDate(0, 0, -lastScheduledDelta)
 	}
 
 	var lastEnd time.Time
-	if s.End == nil {
-		lastEnd = nil
-	} else {
-		lastEnd = time.Parse("15:04 MST", s.End)
-		lastEnd.AddDate(y, m, d)
-		if lastEnd.After(now) {
-			lastEnd.addDate(0, 0, -minWeekdayDelta)
+	if s.End != "" {
+		endTime, err := time.ParseInLocation("15:04", s.End, location)
+		if err != nil {
+			return 0, err
+		}
+		lastEnd = time.Date(y, m, d, endTime.Hour(), endTime.Minute(), 0, 0, location)
+		if scheduledToday && lastEnd.After(now) {
+			lastEnd = lastEnd.AddDate(0, 0, -lastScheduledDelta)
 		}
 	}
 
-	if lastEnd != nil && lastEnd.After(lastStart) {
-		if lastUpdate != nil && lastUpdate.Before(lastEnd) {
-			return -1, nil
-		} else {
-			return 0, nil
-		}
+	if lastEnd.After(lastStart) && lastUpdate.Before(lastEnd) {
+		return -1, nil
+	} else if lastStart.After(lastEnd) && lastUpdate.Before(lastStart) {
+		return 1, nil
 	} else {
-		if lastUpdate == nil || lastUpdate.Before(lastStart) {
-			return 1, nil
-		} else {
-			return 0, nil
-		}
+		return 0, nil
 	}
+}
+
+func (t Template) Action(lastUpdate time.Time, now time.Time) (int, error) {
+	return t.Schedule.Action(lastUpdate, now)
 }
