@@ -1,0 +1,55 @@
+{
+"api_token": "abcd1234",
+"templates": {
+	"daily": {
+		"tasks": [
+			"foo",
+			"bar",
+			"baz"
+		],
+		"schedule": {
+			"start": "9:00 MST"
+		}
+	},
+
+	"daily_end": {
+		"tasks": [
+			"one",
+			"two",
+			"three"
+		],
+		"schedule": {
+			"start": "9:00 MST",
+			"end": "17:00 MST"
+		}
+	},
+
+	"weekdays": {
+		"tasks": [
+			"alpha",
+			"beta"
+		],
+		"schedule": {
+			"days": [
+				"Monday", 
+				"Wednesday", 
+				"Friday"
+			],
+			"start": "9:00 MST"
+		}
+	},
+
+	"weekdays_end": {
+		"tasks": [
+		],
+		"schedule": {
+			"days": [
+				"Monday",
+				"Wednesday",
+				"Friday"
+			],
+			"start": "9:00 MST",
+			"end": "17:00 MST"
+		}
+	}
+}
