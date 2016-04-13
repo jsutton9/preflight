@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -33,6 +32,11 @@ type ApiError struct {
 	ResponseBody string
 }
 
+type WriteResponse struct {
+	SyncStatus map[string]string `json:"SyncStatus"`
+	TempIdMapping map[string]int `json:"TempIdMapping,omitempty"`
+}
+
 func New(token string) Client {
 	rand.Seed(time.Now().UnixNano())
 	return Client{
@@ -50,7 +54,7 @@ func (e ApiError) Error() string {
 	)
 }
 
-func (c Client) PostTask(task string) (string, error) {
+func (c Client) PostTask(task string) (int, error) {
 	uuid := strconv.FormatInt(rand.Int63(), 16)
 	tempId := strconv.FormatInt(rand.Int63(), 16)
 	cmd := command{
@@ -66,22 +70,34 @@ func (c Client) PostTask(task string) (string, error) {
 
 	response, err := http.Post(request, "", strings.NewReader(""))
 	if err != nil {
-		return uuid, err
+		return 0, err
 	}
 	body := make([]byte, 10000)
-	response.Body.Read(body)
+	bodyLen, err := response.Body.Read(body)
+	if err != nil {
+		return 0, err
+	}
 	response.Body.Close()
 
-	pattern := fmt.Sprintf(".*\"%s\":\\s*\"[oO][kK]\"", uuid)
-	syncStatusOk, _ := regexp.Match(pattern, body)
+	responseContent := new(WriteResponse)
+	err = json.Unmarshal(body[:bodyLen], responseContent)
+	if err != nil {
+		return 0, err
+	}
 
-	if (response.StatusCode != 200) || (! syncStatusOk) {
-		return uuid, ApiError{
+	if (response.StatusCode != 200) || (responseContent.SyncStatus[uuid] != "ok") {
+		return 0, ApiError{
 			Command:      "item_add " + task,
 			Status:       response.Status,
 			ResponseBody: string(body),
 		}
 	}
 
-	return uuid, nil
+	id := responseContent.TempIdMapping[tempId]
+
+	return id, nil
 }
+
+/*func (c Client) DeleteTask(id int) error {
+	//TODO
+}*/

@@ -9,7 +9,7 @@ import (
 )
 
 type UpdateRecord struct {
-	Uuids []string   `json:"uuids"`
+	Ids []int        `json:"ids"`
 	Timestamp string `json:"time"`
 	Time time.Time   `json:"-"`
 }

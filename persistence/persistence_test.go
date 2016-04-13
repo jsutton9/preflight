@@ -28,9 +28,9 @@ func TestPersistence(t *testing.T) {
 	p.Config = conf
 
 	updateTime := time.Now()
-	uuids := []string{"ab12", "cd34"}
+	ids := []int{12, 34}
 	p.UpdateHistory["foo"] = UpdateRecord{
-		Uuids: uuids,
+		Ids: ids,
 		Time: updateTime,
 	}
 
@@ -68,13 +68,13 @@ func TestPersistence(t *testing.T) {
 	if ! found {
 		t.Log("Update record for \"foo\" not found")
 		t.Fail()
-	} else if len(record.Uuids) != 2 {
-		t.Log("updateRecord.Uuids incorrect:")
-		t.Logf("\texpected %v, got %v", uuids, record.Uuids)
+	} else if len(record.Ids) != 2 {
+		t.Log("updateRecord.Ids incorrect:")
+		t.Logf("\texpected %v, got %v", ids, record.Ids)
 		t.Fail()
-	} else if (record.Uuids[0] != uuids[0]) || (record.Uuids[1] != uuids[1]) {
-		t.Log("updateRecord.Uuids incorrect:")
-		t.Logf("\texpected %v, got %v", uuids, record.Uuids)
+	} else if (record.Ids[0] != ids[0]) || (record.Ids[1] != ids[1]) {
+		t.Log("updateRecord.Ids incorrect:")
+		t.Logf("\texpected %v, got %v", ids, record.Ids)
 		t.Fail()
 	}
 }
