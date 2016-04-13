@@ -13,11 +13,20 @@ func TestPostTasks(t *testing.T) {
 
 	c := New(key)
 
-	_, err := c.PostTask("foo")
+	id1, err := c.PostTask("foo")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = c.PostTask("bar")
+	id2, err := c.PostTask("bar")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = c.DeleteTask(id1)
+	if err != nil {
+		t.Error(err)
+	}
+	err = c.DeleteTask(id2)
 	if err != nil {
 		t.Error(err)
 	}
