@@ -129,6 +129,9 @@ func (s *schedule) Action(lastUpdate time.Time, now time.Time) (int, error) {
 	}
 }
 
+/*
+ * returns 1 for add, -1 for delete, 0 for no action
+ */
 func (t Template) Action(lastUpdate time.Time, now time.Time) (int, error) {
 	return t.Schedule.Action(lastUpdate, now)
 }
