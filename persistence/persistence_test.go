@@ -8,7 +8,7 @@ import (
 )
 
 func TestPersistence(t *testing.T) {
-	err := os.Remove("/var/lib/todoistist/test.json")
+	err := os.Remove(os.Getenv("HOME")+"/.todoistist/records/test.json")
 	if (err != nil) && (! os.IsNotExist(err)) {
 		t.Fatal(err)
 	}
