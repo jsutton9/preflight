@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -60,6 +61,8 @@ func (e ApiError) Error() string {
 }
 
 func (c Client) PostTask(task string) (int, error) {
+	task = url.QueryEscape(task)
+
 	uuid := strconv.FormatInt(rand.Int63(), 16)
 	tempId := strconv.FormatInt(rand.Int63(), 16)
 	cmd := command{

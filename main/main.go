@@ -15,7 +15,6 @@ func main() {
 	if len(os.Args) < 2 {
 		fmt.Println(usage)
 	} else if os.Args[1] == "update" {
-		//TODO
 		if len(os.Args) == 2 {
 			err := update()
 			if err != nil {
