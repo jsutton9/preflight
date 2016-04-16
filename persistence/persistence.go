@@ -21,7 +21,7 @@ type Persister struct {
 }
 
 func Load(user string) (Persister, error) {
-	dir := "/var/lib/todoistist/"
+	dir := os.Getenv("HOME")+"/.todoistist/records/"
 	p := Persister{Path:dir+user+".json"}
 
 	data, err := ioutil.ReadFile(p.Path)
@@ -64,7 +64,7 @@ func (p Persister) Save() error {
 	err = ioutil.WriteFile(p.Path, data, 0755)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = os.MkdirAll("/var/lib/todoistist", 0755)
+			err = os.MkdirAll(os.Getenv("HOME")+"/.todoistist/records", 0755)
 			if err != nil {
 				return err
 			}
