@@ -70,7 +70,13 @@ func update() error {
 		return err
 	}
 	c := client.New(persist.Config.ApiToken)
-	now := time.Now()
+
+	loc, err := time.LoadLocation(persist.Config.Timezone)
+	if err != nil {
+		return err
+	}
+	now := time.Now().In(loc)
+
 	for name, template := range persist.Config.Templates {
 		record, found := persist.UpdateHistory[name]
 		if ! found {
