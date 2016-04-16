@@ -74,14 +74,14 @@ func update() error {
 	for name, template := range persist.Config.Templates {
 		record, found := persist.UpdateHistory[name]
 		if ! found {
-			record = persistence.UpdateRecord{Ids:make([]int, 0)}
+			persist.UpdateHistory[name] = persistence.UpdateRecord{Ids:make([]int, 0)}
 		}
 		action, err := template.Action(record.Time, now)
 		if err != nil {
 			return err
 		}
 		if action > 0 {
-			record.Ids = make([]int, 20)
+			record.Ids = make([]int, 0, 20)
 			for _, task := range template.Tasks {
 				id, err := c.PostTask(task)
 				if err != nil {

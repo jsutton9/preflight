@@ -76,5 +76,9 @@ func TestPersistence(t *testing.T) {
 		t.Log("updateRecord.Ids incorrect:")
 		t.Logf("\texpected %v, got %v", ids, record.Ids)
 		t.Fail()
+	} else if delta:=record.Time.Unix()-updateTime.Unix(); delta > 60 || delta < -60 {
+		t.Log("updateRecord.Time incorrect:")
+		t.Logf("\texpected %v, got %v", updateTime, record.Time)
+		t.Fail()
 	}
 }

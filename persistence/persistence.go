@@ -38,9 +38,10 @@ func Load(user string) (Persister, error) {
 		return p, err
 	}
 
-	for _, record := range p.UpdateHistory {
+	for name, record := range p.UpdateHistory {
 		if record.Timestamp != "" {
 			record.Time, err = time.Parse("2006-01-02T15:04:05-0700", record.Timestamp)
+			p.UpdateHistory[name] = record
 			if err != nil {
 				return p, err
 			}
@@ -51,8 +52,9 @@ func Load(user string) (Persister, error) {
 }
 
 func (p Persister) Save() error {
-	for _, record := range p.UpdateHistory {
+	for key, record := range p.UpdateHistory {
 		record.Timestamp = record.Time.Format("2006-01-02T15:04:05-0700")
+		p.UpdateHistory[key] = record
 	}
 
 	data, err := json.Marshal(p)
