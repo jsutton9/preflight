@@ -28,10 +28,12 @@ func TestPersistence(t *testing.T) {
 	p.Config = conf
 
 	updateTime := time.Now()
+	addTime := updateTime.AddDate(0, 0, -2)
 	ids := []int{12, 34}
 	p.UpdateHistory["foo"] = UpdateRecord{
 		Ids: ids,
 		Time: updateTime,
+		AddTime: addTime,
 	}
 
 	err = p.Save()
@@ -79,6 +81,10 @@ func TestPersistence(t *testing.T) {
 	} else if delta:=record.Time.Unix()-updateTime.Unix(); delta > 60 || delta < -60 {
 		t.Log("updateRecord.Time incorrect:")
 		t.Logf("\texpected %v, got %v", updateTime, record.Time)
+		t.Fail()
+	} else if delta:=record.AddTime.Unix()-addTime.Unix(); delta > 60 || delta < -60 {
+		t.Log("updateRecord.AddTime incorrect:")
+		t.Logf("\texpected %v, got %v", addTime, record.AddTime)
 		t.Fail()
 	}
 }

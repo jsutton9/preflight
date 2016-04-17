@@ -19,7 +19,7 @@ type Template struct {
 }
 
 type schedule struct {
-	//Interval int     `json:"interval,omitempty"`
+	Interval int     `json:"interval,omitempty"`
 	Days []string    `json:"days,omitempty"`
 	Start string     `json:"start"`
 	End string       `json:"end,omitempty"`
@@ -62,8 +62,7 @@ func parseWeekday(s string) (time.Weekday, error) {
 	}
 }
 
-//TODO: every n days (schedule.Interval)
-func (s *schedule) Action(lastUpdate time.Time, now time.Time) (int, error) {
+func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, error) {
 	if s == nil {
 		return 0, nil
 	}
@@ -120,9 +119,13 @@ func (s *schedule) Action(lastUpdate time.Time, now time.Time) (int, error) {
 		}
 	}
 
+	y, m, d = lastAdd.Date()
+	d += s.Interval
+	intervalMin := time.Date(y, m, d, 0, 0, 0, 0, location)
+
 	if lastEnd.After(lastStart) && lastUpdate.Before(lastEnd) {
 		return -1, nil
-	} else if lastStart.After(lastEnd) && lastUpdate.Before(lastStart) {
+	} else if lastStart.After(lastEnd) && lastUpdate.Before(lastStart) && now.After(intervalMin) {
 		return 1, nil
 	} else {
 		return 0, nil
@@ -132,6 +135,6 @@ func (s *schedule) Action(lastUpdate time.Time, now time.Time) (int, error) {
 /*
  * returns 1 for add, -1 for delete, 0 for no action
  */
-func (t Template) Action(lastUpdate time.Time, now time.Time) (int, error) {
-	return t.Schedule.Action(lastUpdate, now)
+func (t Template) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, error) {
+	return t.Schedule.Action(lastAdd, lastUpdate, now)
 }

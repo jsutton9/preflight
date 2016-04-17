@@ -82,7 +82,7 @@ func update() error {
 		if ! found {
 			persist.UpdateHistory[name] = persistence.UpdateRecord{Ids:make([]int, 0)}
 		}
-		action, err := template.Action(record.Time, now)
+		action, err := template.Action(record.AddTime, record.Time, now)
 		if err != nil {
 			return err
 		}
@@ -95,6 +95,7 @@ func update() error {
 				}
 				record.Ids = append(record.Ids, id)
 			}
+			record.AddTime = now
 		} else if action < 0 {
 			for _, id := range record.Ids {
 				err := c.DeleteTask(id)

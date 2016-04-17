@@ -9,9 +9,11 @@ import (
 )
 
 type UpdateRecord struct {
-	Ids []int        `json:"ids"`
-	Timestamp string `json:"time"`
-	Time time.Time   `json:"-"`
+	Ids []int           `json:"ids"`
+	Timestamp string    `json:"time"`
+	Time time.Time      `json:"-"`
+	AddTimestamp string `json:"add_time"`
+	AddTime time.Time   `json:"-"`
 }
 
 type Persister struct {
@@ -46,6 +48,13 @@ func Load(user string) (Persister, error) {
 				return p, err
 			}
 		}
+		if record.AddTimestamp != "" {
+			record.AddTime, err = time.Parse("2006-01-02T15:04:05-0700", record.AddTimestamp)
+			p.UpdateHistory[name] = record
+			if err != nil {
+				return p, err
+			}
+		}
 	}
 
 	return p, nil
@@ -54,6 +63,7 @@ func Load(user string) (Persister, error) {
 func (p Persister) Save() error {
 	for key, record := range p.UpdateHistory {
 		record.Timestamp = record.Time.Format("2006-01-02T15:04:05-0700")
+		record.AddTimestamp = record.AddTime.Format("2006-01-02T15:04:05-0700")
 		p.UpdateHistory[key] = record
 	}
 
