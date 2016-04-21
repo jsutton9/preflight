@@ -40,7 +40,7 @@ type AddResponse struct {
 }
 
 type DeleteResponse struct {
-	SyncStatus map[string](map[string]string) `json:"SyncStatus"`
+	SyncStatus map[string]string `json:"SyncStatus"`
 }
 
 func New(token string) Client {
@@ -136,7 +136,7 @@ func (c Client) DeleteTask(id int) error {
 		return err
 	}
 
-	syncStatus := responseContent.SyncStatus[uuid][fmt.Sprintf("%d", id)]
+	syncStatus := responseContent.SyncStatus[uuid]
 	if (response.StatusCode != 200) || (syncStatus != "ok") {
 		return ApiError{
 			Command:      fmt.Sprintf("item_delete %d", id),
