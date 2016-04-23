@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/jsutton9/todoistist/client"
+	"github.com/jsutton9/todoistist/clients/todoist"
 	"github.com/jsutton9/todoistist/config"
 	"github.com/jsutton9/todoistist/persistence"
 	"os"
@@ -69,7 +69,7 @@ func update() error {
 	if err != nil {
 		return err
 	}
-	c := client.New(persist.Config.ApiToken)
+	c := todoist.New(persist.Config.ApiToken)
 
 	loc, err := time.LoadLocation(persist.Config.Timezone)
 	if err != nil {
@@ -123,7 +123,7 @@ func invoke(name string) error {
 		return errors.New("Template \""+name+"\" not found")
 	}
 
-	c := client.New(persist.Config.ApiToken)
+	c := todoist.New(persist.Config.ApiToken)
 	for _, task := range template.Tasks {
 		_, err := c.PostTask(task)
 		if err != nil {
