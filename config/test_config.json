@@ -1,6 +1,11 @@
 {
 "api_token": "abcd1234",
 "timezone": "America/Denver",
+"trello": {
+	"key": "12ab",
+	"token": "34cd",
+	"board_name": "aoeu"
+},
 "templates": {
 	"daily": {
 		"tasks": [
@@ -68,6 +73,17 @@
 			],
 			"interval": 3,
 			"start": "9:00"
+		}
+	},
+
+	"trello_tasks": {
+		"trello": {
+			"board_name": "b",
+			"list_name": "l"
+		},
+		"schedule": {
+			"start": "9:00",
+			"end": "17:00"
 		}
 	}
 }

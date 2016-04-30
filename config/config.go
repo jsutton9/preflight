@@ -9,13 +9,22 @@ import (
 
 type Config struct {
 	ApiToken string               `json:"api_token"`
-	Timezone string               `json:"timezone",omitempty`
+	Timezone string               `json:"timezone,omitempty"`
+	Trello trello                 `json:"trello,omitempty"`
 	Templates map[string]Template `json:"templates"`
 }
 
 type Template struct {
-	Tasks []string    `json:"tasks"`
+	Tasks []string     `json:"tasks,omitempty"`
+	Trello trello      `json:"trello,omitempy"`
 	Schedule *schedule `json:"schedule,omitempty"`
+}
+
+type trello struct {
+	Key string       `json:"key,omitempty"`
+	Token string     `json:"token,omitempty"`
+	BoardName string `json:"board_name,omitempty"`
+	ListName string  `json:"list_name,omitempty"`
 }
 
 type schedule struct {

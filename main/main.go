@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jsutton9/todoistist/clients/todoist"
+	"github.com/jsutton9/todoistist/clients/trello"
 	"github.com/jsutton9/todoistist/config"
 	"github.com/jsutton9/todoistist/persistence"
 	"os"
@@ -69,7 +70,10 @@ func update() error {
 	if err != nil {
 		return err
 	}
+
 	c := todoist.New(persist.Config.ApiToken)
+	tr := persist.Config.Trello
+	trelloClient := trello.New(tr.Key, tr.Token, tr.BoardName)
 
 	loc, err := time.LoadLocation(persist.Config.Timezone)
 	if err != nil {
@@ -87,13 +91,9 @@ func update() error {
 			return err
 		}
 		if action > 0 {
-			record.Ids = make([]int, 0, 20)
-			for _, task := range template.Tasks {
-				id, err := c.PostTask(task)
-				if err != nil {
-					return err
-				}
-				record.Ids = append(record.Ids, id)
+			record.Ids, err = postTasks(c, trelloClient, template)
+			if err != nil {
+				return err
 			}
 			record.AddTime = now
 		} else if action < 0 {
@@ -111,6 +111,37 @@ func update() error {
 	}
 
 	return nil
+}
+
+func postTasks(c todoist.Client, trl trello.Client, template config.Template) ([]int, error) {
+	ids := make([]int, 0)
+
+	if template.Tasks != nil {
+		for _, task := range template.Tasks {
+			id, err := c.PostTask(task)
+			if err != nil {
+				return ids, err
+			}
+			ids = append(ids, id)
+		}
+	}
+
+	if template.Trello.ListName != "" {
+		p := template.Trello
+		tasks, err := trl.Tasks(p.Key, p.Token, p.BoardName, p.ListName)
+		if err != nil {
+			return ids, err
+		}
+		for _, task := range tasks {
+			id, err := c.PostTask(task)
+			if err != nil {
+				return ids, err
+			}
+			ids = append(ids, id)
+		}
+	}
+
+	return ids, nil
 }
 
 func invoke(name string) error {
