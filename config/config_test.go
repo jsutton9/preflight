@@ -7,7 +7,7 @@ import (
 
 func actionTest(test *testing.T, t Template, lastAdd time.Time, last time.Time,
 		now time.Time, correctAction int) {
-	action, err := t.Action(lastAdd, last, now)
+	action, _, err := t.Action(lastAdd, last, now)
 	if err != nil {
 		test.Error(err)
 	} else if action != correctAction {
@@ -21,7 +21,7 @@ func actionTest(test *testing.T, t Template, lastAdd time.Time, last time.Time,
 
 func negativeActionTest(test *testing.T, t Template, lastAdd time.Time, last time.Time,
 		now time.Time, incorrectAction int) {
-	action, err := t.Action(lastAdd, last, now)
+	action, _, err := t.Action(lastAdd, last, now)
 	if err != nil {
 		test.Error(err)
 	} else if action == incorrectAction {

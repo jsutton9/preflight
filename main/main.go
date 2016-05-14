@@ -8,8 +8,29 @@ import (
 	"github.com/jsutton9/preflight/config"
 	"github.com/jsutton9/preflight/persistence"
 	"os"
+	"sort"
 	"time"
 )
+
+type updateJob struct {
+	Name string
+	Template config.Template
+	Action int
+	Time time.Time
+	Record persistence.UpdateRecord
+}
+
+type jobsByTime []updateJob
+
+func (l jobsByTime) Len() int {
+	return len(l)
+}
+func (l jobsByTime) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
+}
+func (l jobsByTime) Less(i, j int) bool {
+	return l[i].Time.Before(l[j].Time)
+}
 
 func main() {
 	usage := "Usage: preflight (TEMPLATE_NAME | update | config CONFIG_FILE)"
@@ -81,32 +102,46 @@ func update() error {
 	}
 	now := time.Now().In(loc)
 
+	jobs := make(jobsByTime, 0)
 	for name, template := range persist.Config.Templates {
 		record, found := persist.UpdateHistory[name]
 		if ! found {
 			persist.UpdateHistory[name] = persistence.UpdateRecord{Ids:make([]int, 0)}
 		}
-		action, err := template.Action(record.AddTime, record.Time, now)
+		action, updateTime, err := template.Action(record.AddTime, record.Time, now)
 		if err != nil {
 			return err
 		}
-		if action > 0 {
-			record.Ids, err = postTasks(c, trelloClient, template)
+		if action != 0 {
+			jobs = append(jobs, updateJob{
+				Name: name,
+				Template: template,
+				Action: action,
+				Time: updateTime,
+				Record: record,
+			})
+		}
+	}
+
+	sort.Stable(jobs)
+	for _, job := range jobs {
+		if job.Action > 0 {
+			job.Record.Ids, err = postTasks(c, trelloClient, job.Template)
 			if err != nil {
 				return err
 			}
-			record.AddTime = now
-		} else if action < 0 {
-			for _, id := range record.Ids {
+			job.Record.AddTime = now
+		} else {
+			for _, id := range job.Record.Ids {
 				err := c.DeleteTask(id)
 				if err != nil {
 					return err
 				}
 			}
-			record.Ids = make([]int, 0)
+			job.Record.Ids = make([]int, 0)
 		}
-		record.Time = now
-		persist.UpdateHistory[name] = record
+		job.Record.Time = now
+		persist.UpdateHistory[job.Name] = job.Record
 		persist.Save()
 	}
 
@@ -126,7 +161,7 @@ func postTasks(c todoist.Client, trl trello.Client, template config.Template) ([
 		}
 	}
 
-	if template.Trello.ListName != "" {
+	if template.Trello != nil && template.Trello.ListName != "" {
 		p := template.Trello
 		tasks, err := trl.Tasks(p.Key, p.Token, p.BoardName, p.ListName)
 		if err != nil {

@@ -71,9 +71,9 @@ func parseWeekday(s string) (time.Weekday, error) {
 	}
 }
 
-func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, error) {
+func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, error) {
 	if s == nil {
-		return 0, nil
+		return 0, lastUpdate, nil
 	}
 
 	var scheduledToday bool
@@ -84,7 +84,7 @@ func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 		for _, weekdayString := range s.Days {
 			weekday, err := parseWeekday(weekdayString)
 			if err != nil {
-				return 0, err
+				return 0, lastUpdate, err
 			}
 			weekdayDelta := int(currentWeekday-weekday)
 			if weekdayDelta < 0 {
@@ -109,7 +109,7 @@ func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 
 	startTime, err := time.ParseInLocation("15:04", s.Start, location)
 	if err != nil {
-		return 0, err
+		return 0, lastUpdate, err
 	}
 	lastStart := time.Date(y, m, d, startTime.Hour(), startTime.Minute(), 0, 0, location)
 	if scheduledToday && lastStart.After(now) {
@@ -120,7 +120,7 @@ func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 	if s.End != "" {
 		endTime, err := time.ParseInLocation("15:04", s.End, location)
 		if err != nil {
-			return 0, err
+			return 0, lastUpdate, err
 		}
 		lastEnd = time.Date(y, m, d, endTime.Hour(), endTime.Minute(), 0, 0, location)
 		if scheduledToday && lastEnd.After(now) {
@@ -133,17 +133,17 @@ func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 	intervalMin := time.Date(y, m, d, 0, 0, 0, 0, location)
 
 	if lastEnd.After(lastStart) && lastUpdate.Before(lastEnd) {
-		return -1, nil
+		return -1, lastEnd, nil
 	} else if lastStart.After(lastEnd) && lastUpdate.Before(lastStart) && now.After(intervalMin) {
-		return 1, nil
+		return 1, lastStart, nil
 	} else {
-		return 0, nil
+		return 0, lastUpdate, nil
 	}
 }
 
 /*
  * returns 1 for add, -1 for delete, 0 for no action
  */
-func (t Template) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, error) {
+func (t Template) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, error) {
 	return t.Schedule.Action(lastAdd, lastUpdate, now)
 }
