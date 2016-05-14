@@ -3,16 +3,16 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/jsutton9/todoistist/clients/todoist"
-	"github.com/jsutton9/todoistist/clients/trello"
-	"github.com/jsutton9/todoistist/config"
-	"github.com/jsutton9/todoistist/persistence"
+	"github.com/jsutton9/preflight/clients/todoist"
+	"github.com/jsutton9/preflight/clients/trello"
+	"github.com/jsutton9/preflight/config"
+	"github.com/jsutton9/preflight/persistence"
 	"os"
 	"time"
 )
 
 func main() {
-	usage := "Usage: todoistist (TEMPLATE_NAME | update | config CONFIG_FILE)"
+	usage := "Usage: preflight (TEMPLATE_NAME | update | config CONFIG_FILE)"
 	if len(os.Args) < 2 {
 		fmt.Println(usage)
 	} else if os.Args[1] == "update" {

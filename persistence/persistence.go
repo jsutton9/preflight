@@ -2,7 +2,7 @@ package persistence
 
 import (
 	"encoding/json"
-	"github.com/jsutton9/todoistist/config"
+	"github.com/jsutton9/preflight/config"
 	"io/ioutil"
 	"os"
 	"time"
@@ -23,7 +23,7 @@ type Persister struct {
 }
 
 func Load(user string) (Persister, error) {
-	dir := os.Getenv("HOME")+"/.todoistist/records/"
+	dir := os.Getenv("HOME")+"/.preflight/records/"
 	p := Persister{Path:dir+user+".json"}
 
 	data, err := ioutil.ReadFile(p.Path)
@@ -74,7 +74,7 @@ func (p Persister) Save() error {
 	err = ioutil.WriteFile(p.Path, data, 0755)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = os.MkdirAll(os.Getenv("HOME")+"/.todoistist/records", 0755)
+			err = os.MkdirAll(os.Getenv("HOME")+"/.preflight/records", 0755)
 			if err != nil {
 				return err
 			}

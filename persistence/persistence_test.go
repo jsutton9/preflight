@@ -1,14 +1,14 @@
 package persistence
 
 import (
-	"github.com/jsutton9/todoistist/config"
+	"github.com/jsutton9/preflight/config"
 	"os"
 	"testing"
 	"time"
 )
 
 func TestPersistence(t *testing.T) {
-	err := os.Remove(os.Getenv("HOME")+"/.todoistist/records/test.json")
+	err := os.Remove(os.Getenv("HOME")+"/.preflight/records/test.json")
 	if (err != nil) && (! os.IsNotExist(err)) {
 		t.Fatal(err)
 	}
