@@ -16,7 +16,7 @@ type Config struct {
 
 type Template struct {
 	Tasks []string     `json:"tasks,omitempty"`
-	Trello trello      `json:"trello,omitempy"`
+	Trello *trello      `json:"trello,omitempy"`
 	Schedule *schedule `json:"schedule,omitempty"`
 }
 

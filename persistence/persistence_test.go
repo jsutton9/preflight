@@ -20,7 +20,7 @@ func TestPersistence(t *testing.T) {
 
 	templates := make(map[string]config.Template)
 	tasks := []string{"first","second"}
-	templates["foo"] = config.Template{tasks,nil}
+	templates["foo"] = config.Template{tasks,nil,nil}
 	conf := config.Config{
 		ApiToken: "abc123",
 		Templates: templates,
