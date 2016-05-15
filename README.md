@@ -3,8 +3,8 @@ Preflight is a checklist manager which integrates with Todoist. It will take a l
 
 ## Installation
 1. Install go and set GOPATH.
-2. Download source with `go get github.com/jsutton9/preflight`.
-3. Build the executable with `go build -o preflight github.com/jsutton9/preflight/main`.
+2. Download source with `go get github.com/jsutton9/preflight`
+3. Build the executable with `go build -o preflight github.com/jsutton9/preflight/main`
 
 ## Commands
 - `preflight config CONFIG_FILE` sets the configuration to that in the specified config file.
