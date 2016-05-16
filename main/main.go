@@ -148,6 +148,41 @@ func update() error {
 	return nil
 }
 
+func invoke(name string) error {
+	persist, err := persistence.Load("main")
+	if err != nil {
+		return err
+	}
+	template, found := persist.Config.Templates[name]
+	if ! found {
+		return errors.New("Template \""+name+"\" not found")
+	}
+
+	todoistClient := todoist.New(persist.Config.ApiToken)
+	tr := persist.Config.Trello
+	trelloClient := trello.New(tr.Key, tr.Token, tr.BoardName)
+	record, found := persist.UpdateHistory[name]
+	if ! found {
+		persist.UpdateHistory[name] = persistence.UpdateRecord{Ids:make([]int, 0)}
+	}
+
+	loc, err := time.LoadLocation(persist.Config.Timezone)
+	if err != nil {
+		return err
+	}
+	now := time.Now().In(loc)
+
+	record.Ids, err = postTasks(todoistClient, trelloClient, template)
+	if err != nil {
+		return err
+	}
+	record.Time = now
+	persist.UpdateHistory[name] = record
+	persist.Save()
+
+	return nil
+}
+
 func postTasks(c todoist.Client, trl trello.Client, template config.Template) ([]int, error) {
 	ids := make([]int, 0)
 
@@ -177,25 +212,4 @@ func postTasks(c todoist.Client, trl trello.Client, template config.Template) ([
 	}
 
 	return ids, nil
-}
-
-func invoke(name string) error {
-	persist, err := persistence.Load("main")
-	if err != nil {
-		return err
-	}
-	template, found := persist.Config.Templates[name]
-	if ! found {
-		return errors.New("Template \""+name+"\" not found")
-	}
-
-	c := todoist.New(persist.Config.ApiToken)
-	for _, task := range template.Tasks {
-		_, err := c.PostTask(task)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
