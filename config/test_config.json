@@ -1,5 +1,5 @@
 {
-"api_token": "abcd1234",
+"todoist_token": "abcd1234",
 "timezone": "America/Denver",
 "trello": {
 	"key": "12ab",

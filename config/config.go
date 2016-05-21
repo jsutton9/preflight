@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	ApiToken string               `json:"api_token"`
+	TodoistToken string           `json:"todoist_token"`
 	Timezone string               `json:"timezone,omitempty"`
 	Trello trello                 `json:"trello,omitempty"`
 	Templates map[string]Template `json:"templates"`
@@ -16,7 +16,7 @@ type Config struct {
 
 type Template struct {
 	Tasks []string     `json:"tasks,omitempty"`
-	Trello *trello      `json:"trello,omitempy"`
+	Trello *trello     `json:"trello,omitempy"`
 	Schedule *schedule `json:"schedule,omitempty"`
 }
 

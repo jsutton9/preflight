@@ -22,7 +22,7 @@ func TestPersistence(t *testing.T) {
 	tasks := []string{"first","second"}
 	templates["foo"] = config.Template{tasks,nil,nil}
 	conf := config.Config{
-		ApiToken: "abc123",
+		TodoistToken: "abc123",
 		Templates: templates,
 	}
 	p.Config = conf
@@ -46,9 +46,9 @@ func TestPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if p.Config.ApiToken != "abc123" {
-		t.Log("Config.ApiToken not persisted correctly:")
-		t.Logf("\texpected \"abc123\", got \"%s\"\n", p.Config.ApiToken)
+	if p.Config.TodoistToken != "abc123" {
+		t.Log("Config.TodoistToken not persisted correctly:")
+		t.Logf("\texpected \"abc123\", got \"%s\"\n", p.Config.TodoistToken)
 		t.Fail()
 	}
 

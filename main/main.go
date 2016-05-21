@@ -95,7 +95,7 @@ func update() error {
 		return errors.New("main.update: error loading persistence: \n\t" + err.Error())
 	}
 
-	c := todoist.New(persist.Config.ApiToken)
+	c := todoist.New(persist.Config.TodoistToken)
 	tr := persist.Config.Trello
 	trelloClient := trello.New(tr.Key, tr.Token, tr.BoardName)
 
@@ -161,7 +161,7 @@ func invoke(name string) error {
 		return errors.New("main.invoke: template \""+name+"\" not found")
 	}
 
-	todoistClient := todoist.New(persist.Config.ApiToken)
+	todoistClient := todoist.New(persist.Config.TodoistToken)
 	tr := persist.Config.Trello
 	trelloClient := trello.New(tr.Key, tr.Token, tr.BoardName)
 	record, found := persist.UpdateHistory[name]
