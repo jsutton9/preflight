@@ -35,37 +35,40 @@ func (c Client) get(query string) ([]byte, error) {
 	request := c.Url + query + "&key=" + c.Key + "&token=" + c.Token
 	response, err := http.Get(request)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("trello.Client.get: error getting " + request + ": " +
+			"\n\t" + err.Error())
 	}
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("trello.Client.get: error reading response: " +
+			"\n\t" + err.Error())
 	}
 	response.Body.Close()
 
 	if response.StatusCode != 200 {
 		return nil, errors.New(fmt.Sprintf(
-			"Bad API response for \"%s\":\n"+
-				"Status: %s\n"+
-				"Body: %s\n",
+			"trello.Client.get: bad API response for \"%s\":\n"+
+				"\t\tStatus: %s\n"+
+				"\t\tBody: %s\n",
 			request, response.Status, string(body)))
 	}
 
 	return body, nil
 }
 
-
 func (c Client) boardId() (string, error) {
 	body, err := c.get("members/me/boards?fields=name")
 	if err != nil {
-		return "", err
+		return "", errors.New("trello.Client.boardId: error getting boards: " +
+			"\n\t" + err.Error())
 	}
 
 	boards := make([]board, 0)
 	err = json.Unmarshal(body, &boards)
 	if err != nil {
-		return "", err
+		return "", errors.New("trello.Client.boardId: error parsing body: " +
+			"\n\t" + err.Error())
 	}
 
 	for _, board := range boards {
@@ -74,19 +77,21 @@ func (c Client) boardId() (string, error) {
 		}
 	}
 
-	return "", errors.New("Board named \"" + c.BoardName + "\" not found.")
+	return "", errors.New("trello.Client.boardId: Board named \"" + c.BoardName + "\" not found.")
 }
 
 func (c Client) cardNames(boardId, listName string) ([]string, error) {
-	body, err := c.get("boards/"+boardId+"/lists?fields=name&cards=all&card_fields=name")
+	body, err := c.get("boards/" + boardId + "/lists?fields=name&cards=all&card_fields=name")
 	if err != nil {
-		return nil, err
+		return nil, errors.New("trello.Client.cardNames: error getting lists: " +
+			"\n\t" + err.Error())
 	}
 
 	lists := make([]list, 0)
 	err = json.Unmarshal(body, &lists)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("trello.Client.cardNames: error parsing response: " +
+			"\n\t" + err.Error())
 	}
 
 	for _, l := range lists {
@@ -99,14 +104,14 @@ func (c Client) cardNames(boardId, listName string) ([]string, error) {
 		}
 	}
 
-	return nil, errors.New("List named \"" + listName + "\" not found.")
+	return nil, errors.New("trello.Client.cardNames: list named \"" + listName + "\" not found.")
 }
 
 func New(key, token, boardName string) Client {
 	return Client{
-		Url: "https://api.trello.com/1/",
-		Key: key,
-		Token: token,
+		Url:       "https://api.trello.com/1/",
+		Key:       key,
+		Token:     token,
 		BoardName: boardName,
 	}
 }
@@ -125,11 +130,13 @@ func (c Client) Tasks(key, token, boardName, listName string) ([]string, error) 
 
 	boardId, err := newClient.boardId()
 	if err != nil {
-		return nil, err
+		return nil, errors.New("trello.Client.Tasks: error getting board ID: " +
+			"\n\t" + err.Error())
 	}
 	tasks, err := newClient.cardNames(boardId, listName)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("trello.Client.Tasks: error getting card names: " +
+			"\n\t" + err.Error())
 	}
 	return tasks, nil
 }

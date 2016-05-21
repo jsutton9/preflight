@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/jsutton9/preflight/config"
 	"io/ioutil"
 	"os"
@@ -32,12 +33,14 @@ func Load(user string) (Persister, error) {
 			p.UpdateHistory = make(map[string]UpdateRecord)
 			return p, nil
 		} else {
-			return p, err
+			return p, errors.New("persistence.Load: error reading records: " +
+				"\n\t" + err.Error())
 		}
 	}
 	err = json.Unmarshal(data, &p)
 	if err != nil {
-		return p, err
+		return p, errors.New("persistence.Load: error parsing records: " +
+			"\n\t" + err.Error())
 	}
 
 	for name, record := range p.UpdateHistory {
@@ -45,14 +48,16 @@ func Load(user string) (Persister, error) {
 			record.Time, err = time.Parse("2006-01-02T15:04:05-0700", record.Timestamp)
 			p.UpdateHistory[name] = record
 			if err != nil {
-				return p, err
+				return p, errors.New("persistence.Load: error parsing timestamp " +
+					"\"" + record.Timestamp + "\": " + "\n\t" + err.Error())
 			}
 		}
 		if record.AddTimestamp != "" {
 			record.AddTime, err = time.Parse("2006-01-02T15:04:05-0700", record.AddTimestamp)
 			p.UpdateHistory[name] = record
 			if err != nil {
-				return p, err
+				return p, errors.New("persistence.Load: error parsing add timestamp " +
+					"\"" + record.AddTimestamp + "\": " + "\n\t" + err.Error())
 			}
 		}
 	}
@@ -69,21 +74,25 @@ func (p Persister) Save() error {
 
 	data, err := json.Marshal(p)
 	if err != nil {
-		return err
+		return errors.New("persistence.Persister.Save: error marshalling data: " +
+			"\n\t" + err.Error())
 	}
 	err = ioutil.WriteFile(p.Path, data, 0755)
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(os.Getenv("HOME")+"/.preflight/records", 0755)
 			if err != nil {
-				return err
+				return errors.New("persistence.Persister.Save: error making records dir: " +
+					"\n\t" + err.Error())
 			}
 			err = ioutil.WriteFile(p.Path, data, 0755)
 			if err != nil {
-				return err
+				return errors.New("persistence.Persister.Save: error writing records file: " +
+					"\n\t" + err.Error())
 			}
 		} else {
-			return err
+			return errors.New("persistence.Persister.Save: error writing records file: " +
+				"\n\t" + err.Error())
 		}
 	}
 

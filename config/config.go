@@ -37,13 +37,15 @@ type schedule struct {
 func New(filename string) (*Config, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("config.New: error reading \"" + filename + "\": " +
+			"\n\t" + err.Error())
 	}
 
 	config := Config{}
 	err = json.Unmarshal(data, &config)
 	if err != nil {
-		return &config, err
+		return &config, errors.New("config.New: error parsing \"" + filename + "\": " +
+			"\n\t" + err.Error())
 	}
 
 	return &config, nil
@@ -66,8 +68,7 @@ func parseWeekday(s string) (time.Weekday, error) {
 	case "Saturday", "saturday", "Sat", "sat":
 		return time.Saturday, nil
 	default:
-		return time.Sunday, errors.New(
-			"Unable to parse day of the week \""+s+"\"")
+		return time.Sunday, errors.New("config.parseWeekday: unable to parse \"" + s + "\"")
 	}
 }
 
@@ -84,7 +85,8 @@ func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 		for _, weekdayString := range s.Days {
 			weekday, err := parseWeekday(weekdayString)
 			if err != nil {
-				return 0, lastUpdate, err
+				return 0, lastUpdate, errors.New("config.schedule.Action: " +
+					"error parsing weekday: \n\t" + err.Error())
 			}
 			weekdayDelta := int(currentWeekday-weekday)
 			if weekdayDelta < 0 {
@@ -109,7 +111,8 @@ func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 
 	startTime, err := time.ParseInLocation("15:04", s.Start, location)
 	if err != nil {
-		return 0, lastUpdate, err
+		return 0, lastUpdate, errors.New("config.schedule.Action: error parsing start time " +
+			"\"" + s.Start + "\": \n\t" + err.Error())
 	}
 	lastStart := time.Date(y, m, d, startTime.Hour(), startTime.Minute(), 0, 0, location)
 	if scheduledToday && lastStart.After(now) {
@@ -120,7 +123,8 @@ func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 	if s.End != "" {
 		endTime, err := time.ParseInLocation("15:04", s.End, location)
 		if err != nil {
-			return 0, lastUpdate, err
+			return 0, lastUpdate, errors.New("config.schedule.Action: error parsing end time " +
+				"\"" + s.End + "\": \n\t" + err.Error())
 		}
 		lastEnd = time.Date(y, m, d, endTime.Hour(), endTime.Minute(), 0, 0, location)
 		if scheduledToday && lastEnd.After(now) {
@@ -145,5 +149,9 @@ func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
  * returns 1 for add, -1 for delete, 0 for no action
  */
 func (t Template) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, error) {
-	return t.Schedule.Action(lastAdd, lastUpdate, now)
+	action, updateTime, err := t.Schedule.Action(lastAdd, lastUpdate, now)
+	if err != nil {
+		err = errors.New("config.Template.Action: error: \n\t" + err.Error())
+	}
+	return action, updateTime, err
 }

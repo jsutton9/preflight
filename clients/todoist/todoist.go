@@ -2,6 +2,7 @@ package todoist
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -29,6 +30,7 @@ type command struct {
 }
 
 type ApiError struct {
+	Function     string
 	Command      string
 	Status       string
 	ResponseBody string
@@ -53,10 +55,10 @@ func New(token string) Client {
 
 func (e ApiError) Error() string {
 	return fmt.Sprintf(
-		"Bad API response for \"%s\":\n"+
-			"Status: %s\n"+
-			"Body: %s\n",
-		e.Command, e.Status, e.ResponseBody,
+		"%s: bad API response for \"%s\":\n"+
+			"\t\tStatus: %s\n"+
+			"\t\tBody: %s\n",
+		e.Function, e.Command, e.Status, e.ResponseBody,
 	)
 }
 
@@ -78,23 +80,24 @@ func (c Client) PostTask(task string) (int, error) {
 
 	response, err := http.Post(request, "", strings.NewReader(""))
 	if err != nil {
-		return 0, err
+		return 0, errors.New("todoist.Client.PostTask: error posting task: \n\t"+err.Error())
 	}
 	body := make([]byte, 10000)
 	bodyLen, err := response.Body.Read(body)
 	if err != nil {
-		return 0, err
+		return 0, errors.New("todoist.Client.PostTask: error reading response: \n\t"+err.Error())
 	}
 	response.Body.Close()
 
 	responseContent := new(AddResponse)
 	err = json.Unmarshal(body[:bodyLen], responseContent)
 	if err != nil {
-		return 0, err
+		return 0, errors.New("todoist.Client.PostTask: error parsing response: \n\t"+err.Error())
 	}
 
 	if (response.StatusCode != 200) || (responseContent.SyncStatus[uuid] != "ok") {
 		return 0, ApiError{
+			Function:     "todoist.PostTask",
 			Command:      "item_add " + task,
 			Status:       response.Status,
 			ResponseBody: string(body),
@@ -121,24 +124,25 @@ func (c Client) DeleteTask(id int) error {
 
 	response, err := http.Post(request, "", strings.NewReader(""))
 	if err != nil {
-		return err
+		return errors.New("todoist.Client.DeleteTask: error posting deletion: \n\t"+err.Error())
 	}
 	body := make([]byte, 10000)
 	bodyLen, err := response.Body.Read(body)
 	if err != nil {
-		return err
+		return errors.New("todoist.Client.DeleteTask: error reading response: \n\t"+err.Error())
 	}
 	response.Body.Close()
 
 	responseContent := new(DeleteResponse)
 	err = json.Unmarshal(body[:bodyLen], responseContent)
 	if err != nil {
-		return err
+		return errors.New("todoist.Client.DeleteTask: error parsing response: \n\t"+err.Error())
 	}
 
 	syncStatus := responseContent.SyncStatus[uuid]
 	if (response.StatusCode != 200) || (syncStatus != "ok") {
 		return ApiError{
+			Function:     "todoist.PostTask",
 			Command:      fmt.Sprintf("item_delete %d", id),
 			Status:       response.Status,
 			ResponseBody: string(body),

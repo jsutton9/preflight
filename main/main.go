@@ -7,6 +7,7 @@ import (
 	"github.com/jsutton9/preflight/clients/trello"
 	"github.com/jsutton9/preflight/config"
 	"github.com/jsutton9/preflight/persistence"
+	"log"
 	"os"
 	"sort"
 	"time"
@@ -34,13 +35,14 @@ func (l jobsByTime) Less(i, j int) bool {
 
 func main() {
 	usage := "Usage: preflight (TEMPLATE_NAME | update | config CONFIG_FILE)"
+	logger := log.New(os.Stderr, "", log.Ldate | log.Ltime)
 	if len(os.Args) < 2 {
 		fmt.Println(usage)
 	} else if os.Args[1] == "update" {
 		if len(os.Args) == 2 {
 			err := update()
 			if err != nil {
-				fmt.Println(err)
+				logger.Println("main: error updating: \n\t" + err.Error())
 			}
 		} else {
 			fmt.Println(usage)
@@ -49,7 +51,7 @@ func main() {
 		if len(os.Args) == 3 {
 			err := setConfig(os.Args[2])
 			if err != nil {
-				fmt.Println(err)
+				logger.Println("main: error setting config: \n\t" + err.Error())
 			}
 		} else {
 			fmt.Println(usage)
@@ -58,7 +60,8 @@ func main() {
 		if len(os.Args) == 2 {
 			err := invoke(os.Args[1])
 			if err != nil {
-				fmt.Println(err)
+				logger.Println("main: error invoking \"" + os.Args[1] + "\": " +
+					"\n\t" + err.Error())
 			}
 		} else {
 			fmt.Println(usage)
@@ -69,18 +72,18 @@ func main() {
 func setConfig(path string) error {
 	conf, err := config.New(path)
 	if err != nil {
-		return err
+		return errors.New("main.setConfig: error creating config: \n\t" + err.Error())
 	}
 
 	persist, err := persistence.Load("main")
 	if err != nil {
-		return err
+		return errors.New("main.setConfig: error loading persistence: \n\t" + err.Error())
 	}
 
 	persist.Config = *conf
 	err = persist.Save()
 	if err != nil {
-		return err
+		return errors.New("main.setConfig: error saving persistence: \n\t" + err.Error())
 	}
 
 	return nil
@@ -89,7 +92,7 @@ func setConfig(path string) error {
 func update() error {
 	persist, err := persistence.Load("main")
 	if err != nil {
-		return err
+		return errors.New("main.update: error loading persistence: \n\t" + err.Error())
 	}
 
 	c := todoist.New(persist.Config.ApiToken)
@@ -98,7 +101,7 @@ func update() error {
 
 	loc, err := time.LoadLocation(persist.Config.Timezone)
 	if err != nil {
-		return err
+		return errors.New("main.update: error loading timezone: \n\t" + err.Error())
 	}
 	now := time.Now().In(loc)
 
@@ -110,7 +113,7 @@ func update() error {
 		}
 		action, updateTime, err := template.Action(record.AddTime, record.Time, now)
 		if err != nil {
-			return err
+			return errors.New("main.update: error determining action: \n\t" + err.Error())
 		}
 		if action != 0 {
 			jobs = append(jobs, updateJob{
@@ -128,14 +131,14 @@ func update() error {
 		if job.Action > 0 {
 			job.Record.Ids, err = postTasks(c, trelloClient, job.Template)
 			if err != nil {
-				return err
+				return errors.New("main.update: error posting tasks: \n\t" + err.Error())
 			}
 			job.Record.AddTime = now
 		} else {
 			for _, id := range job.Record.Ids {
 				err := c.DeleteTask(id)
 				if err != nil {
-					return err
+					return errors.New("main.update: error deleting tasks: \n\t" + err.Error())
 				}
 			}
 			job.Record.Ids = make([]int, 0)
@@ -151,11 +154,11 @@ func update() error {
 func invoke(name string) error {
 	persist, err := persistence.Load("main")
 	if err != nil {
-		return err
+		return errors.New("main.invoke: error loading persistence: \n\t" + err.Error())
 	}
 	template, found := persist.Config.Templates[name]
 	if ! found {
-		return errors.New("Template \""+name+"\" not found")
+		return errors.New("main.invoke: template \""+name+"\" not found")
 	}
 
 	todoistClient := todoist.New(persist.Config.ApiToken)
@@ -168,13 +171,13 @@ func invoke(name string) error {
 
 	loc, err := time.LoadLocation(persist.Config.Timezone)
 	if err != nil {
-		return err
+		return errors.New("main.invoke: error loading timezone: \n\t" + err.Error())
 	}
 	now := time.Now().In(loc)
 
 	record.Ids, err = postTasks(todoistClient, trelloClient, template)
 	if err != nil {
-		return err
+		return errors.New("main.invoke: error posting tasks: \n\t" + err.Error())
 	}
 	record.Time = now
 	persist.UpdateHistory[name] = record
@@ -190,7 +193,7 @@ func postTasks(c todoist.Client, trl trello.Client, template config.Template) ([
 		for _, task := range template.Tasks {
 			id, err := c.PostTask(task)
 			if err != nil {
-				return ids, err
+				return ids, errors.New("main.postTasks: error posting tasks: \n\t" + err.Error())
 			}
 			ids = append(ids, id)
 		}
@@ -200,12 +203,12 @@ func postTasks(c todoist.Client, trl trello.Client, template config.Template) ([
 		p := template.Trello
 		tasks, err := trl.Tasks(p.Key, p.Token, p.BoardName, p.ListName)
 		if err != nil {
-			return ids, err
+			return ids, errors.New("main.postTasks: error getting tasks from trello: \n\t" + err.Error())
 		}
 		for _, task := range tasks {
 			id, err := c.PostTask(task)
 			if err != nil {
-				return ids, err
+				return ids, errors.New("main.postTasks: error posting tasks: \n\t" + err.Error())
 			}
 			ids = append(ids, id)
 		}
