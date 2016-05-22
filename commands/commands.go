@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/jsutton9/preflight/clients/todoist"
 	"github.com/jsutton9/preflight/clients/trello"
 	"github.com/jsutton9/preflight/config"
@@ -30,13 +32,18 @@ func (l jobsByTime) Less(i, j int) bool {
 	return l[i].Time.Before(l[j].Time)
 }
 
-func SetConfig(path string) error {
+type templateRequest struct {
+	Name     string
+	Template config.Template
+}
+
+func SetConfig(user string, path string) error {
 	conf, err := config.New(path)
 	if err != nil {
 		return errors.New("commands.SetConfig: error creating config: \n\t" + err.Error())
 	}
 
-	persist, err := persistence.Load("main")
+	persist, err := persistence.Load(user)
 	if err != nil {
 		return errors.New("commands.SetConfig: error loading persistence: \n\t" + err.Error())
 	}
@@ -50,8 +57,8 @@ func SetConfig(path string) error {
 	return nil
 }
 
-func Update() error {
-	persist, err := persistence.Load("main")
+func Update(user string) error {
+	persist, err := persistence.Load(user)
 	if err != nil {
 		return errors.New("commands.Update: error loading persistence: \n\t" + err.Error())
 	}
@@ -112,8 +119,8 @@ func Update() error {
 	return nil
 }
 
-func Invoke(name string) error {
-	persist, err := persistence.Load("main")
+func Invoke(user, name string) error {
+	persist, err := persistence.Load(user)
 	if err != nil {
 		return errors.New("commands.Invoke: error loading persistence: \n\t" + err.Error())
 	}
@@ -144,6 +151,125 @@ func Invoke(name string) error {
 	persist.UpdateHistory[name] = record
 	persist.Save()
 
+	return nil
+}
+
+func AddTemplate(user, templateReqString string) error {
+	request := templateRequest{}
+	err := json.Unmarshal([]byte(templateReqString), &request)
+	if err != nil {
+		return errors.New("commands.AddTemplate: error parsing templateReqString: " +
+			"\n\t" + err.Error())
+	}
+
+	persist, err := persistence.Load(user)
+	if err != nil {
+		return errors.New("commands.AddTemplate: error loading persistence: \n\t" + err.Error())
+	}
+	_, found := persist.Config.Templates[request.Name]
+	if found {
+		return errors.New("commands.AddTemplate: template \"" + request.Name + "\" already exists")
+	}
+
+	persist.Config.Templates[request.Name] = request.Template
+	persist.Save()
+
+	return nil
+}
+
+func DeleteTemplate(user, name string) error {
+	persist, err := persistence.Load(user)
+	if err != nil {
+		return errors.New("commands.DeleteTemplate: error loading persistence: \n\t" + err.Error())
+	}
+	_, found := persist.Config.Templates[name]
+	if ! found {
+		return errors.New("commands.DeleteTemplate: template not found")
+	}
+
+	delete(persist.Config.Templates, name)
+	persist.Save()
+
+	return nil
+}
+
+func GetTemplateString(user, name string) (string, error) {
+	persist, err := persistence.Load(user)
+	if err != nil {
+		return "", errors.New("commands.GetTemplateString: error loading persistence: " +
+			"\n\t" + err.Error())
+	}
+	template, found := persist.Config.Templates[name]
+	if ! found {
+		return "", errors.New("commands.GetTemplateString: template \"" + name + "\" not found")
+	}
+
+	jsonBytes, err := json.Marshal(template)
+	if err != nil {
+		return "", errors.New("commands.GetTemplateString: error marshalling template: " +
+			"\n\t" + err.Error())
+	}
+
+	return string(jsonBytes[:]), nil
+}
+
+func GetTemplatesString(user string) (string, error) {
+	persist, err := persistence.Load(user)
+	if err != nil {
+		return "", errors.New("commands.GetTemplatesString: error loading persistence: " +
+			"\n\t" + err.Error())
+	}
+
+	jsonBytes, err := json.Marshal(persist.Config.Templates)
+	if err != nil {
+		return "", errors.New("commands.GetTemplatesString: error marshalling templates: " +
+			"\n\t" + err.Error())
+	}
+
+	return string(jsonBytes[:]), nil
+}
+
+func GetGlobalSettings(user string) (string, error) {
+	persist, err := persistence.Load(user)
+	if err != nil {
+		return "", errors.New("commands.GetGlobalSettings: error loading persistence: " +
+			"\n\t" + err.Error())
+	}
+
+	trelloString, err := json.Marshal(persist.Config.Trello)
+	if err != nil {
+		return "", errors.New("commands.GetGlobalSettings: error marshalling trello: " +
+			"\n\t" + err.Error())
+	}
+
+	return fmt.Sprintf("{todoist_token: %s, timezone: %s, trello: %s}",
+		persist.Config.TodoistToken, persist.Config.Timezone, trelloString), nil
+}
+
+func SetGlobalSetting(user, name, value string) error {
+	persist, err := persistence.Load(user)
+	if err != nil {
+		return errors.New("commands.SetGlobalSetting: error loading persistence: " +
+			"\n\t" + err.Error())
+	}
+
+	if name == "todoist_token" {
+		persist.Config.TodoistToken = value
+	} else if name == "timezone" {
+		persist.Config.Timezone = value
+	} else if name == "trello" {
+		trello := config.Trello{}
+		err = json.Unmarshal([]byte(value), &trello)
+		if err != nil {
+			return errors.New("commands.SetGlobalSetting: error unmarshalling trello: " +
+				"\n\t" + err.Error())
+		}
+		persist.Config.Trello = trello
+	} else {
+		return errors.New("commands.SetGlobalSetting: setting \"" + name + "\" not recognized")
+	}
+
+	persist.Save()
 	return nil
 }
 

@@ -10,17 +10,17 @@ import (
 type Config struct {
 	TodoistToken string           `json:"todoist_token"`
 	Timezone string               `json:"timezone,omitempty"`
-	Trello trello                 `json:"trello,omitempty"`
+	Trello Trello                 `json:"trello,omitempty"`
 	Templates map[string]Template `json:"templates"`
 }
 
 type Template struct {
 	Tasks []string     `json:"tasks,omitempty"`
-	Trello *trello     `json:"trello,omitempy"`
+	Trello *Trello     `json:"trello,omitempy"`
 	Schedule *schedule `json:"schedule,omitempty"`
 }
 
-type trello struct {
+type Trello struct {
 	Key string       `json:"key,omitempty"`
 	Token string     `json:"token,omitempty"`
 	BoardName string `json:"board_name,omitempty"`
