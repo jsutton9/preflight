@@ -7,17 +7,21 @@ import (
 	"time"
 )
 
-type Config struct {
+type GlobalSettings struct {
 	TodoistToken string           `json:"todoist_token"`
 	Timezone string               `json:"timezone,omitempty"`
 	Trello Trello                 `json:"trello,omitempty"`
+}
+
+type Config struct {
+	GlobalSettings
 	Templates map[string]Template `json:"templates"`
 }
 
 type Template struct {
 	Tasks []string     `json:"tasks,omitempty"`
 	Trello *Trello     `json:"trello,omitempy"`
-	Schedule *schedule `json:"schedule,omitempty"`
+	Schedule *Schedule `json:"schedule,omitempty"`
 }
 
 type Trello struct {
@@ -27,7 +31,7 @@ type Trello struct {
 	ListName string  `json:"list_name,omitempty"`
 }
 
-type schedule struct {
+type Schedule struct {
 	Interval int     `json:"interval,omitempty"`
 	Days []string    `json:"days,omitempty"`
 	Start string     `json:"start"`
@@ -72,7 +76,7 @@ func parseWeekday(s string) (time.Weekday, error) {
 	}
 }
 
-func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, error) {
+func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, error) {
 	if s == nil {
 		return 0, lastUpdate, nil
 	}
@@ -85,7 +89,7 @@ func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 		for _, weekdayString := range s.Days {
 			weekday, err := parseWeekday(weekdayString)
 			if err != nil {
-				return 0, lastUpdate, errors.New("config.schedule.Action: " +
+				return 0, lastUpdate, errors.New("config.Schedule.Action: " +
 					"error parsing weekday: \n\t" + err.Error())
 			}
 			weekdayDelta := int(currentWeekday-weekday)
@@ -111,7 +115,7 @@ func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 
 	startTime, err := time.ParseInLocation("15:04", s.Start, location)
 	if err != nil {
-		return 0, lastUpdate, errors.New("config.schedule.Action: error parsing start time " +
+		return 0, lastUpdate, errors.New("config.Schedule.Action: error parsing start time " +
 			"\"" + s.Start + "\": \n\t" + err.Error())
 	}
 	lastStart := time.Date(y, m, d, startTime.Hour(), startTime.Minute(), 0, 0, location)
@@ -123,7 +127,7 @@ func (s *schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 	if s.End != "" {
 		endTime, err := time.ParseInLocation("15:04", s.End, location)
 		if err != nil {
-			return 0, lastUpdate, errors.New("config.schedule.Action: error parsing end time " +
+			return 0, lastUpdate, errors.New("config.Schedule.Action: error parsing end time " +
 				"\"" + s.End + "\": \n\t" + err.Error())
 		}
 		lastEnd = time.Date(y, m, d, endTime.Hour(), endTime.Minute(), 0, 0, location)

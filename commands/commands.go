@@ -3,7 +3,6 @@ package commands
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/jsutton9/preflight/clients/todoist"
 	"github.com/jsutton9/preflight/clients/trello"
 	"github.com/jsutton9/preflight/config"
@@ -33,8 +32,8 @@ func (l jobsByTime) Less(i, j int) bool {
 }
 
 type templateRequest struct {
-	Name     string
-	Template config.Template
+	Name     string          `json:"name"`
+	Template config.Template `json:"template"`
 }
 
 func SetConfig(user string, path string) error {
@@ -177,6 +176,30 @@ func AddTemplate(user, templateReqString string) error {
 	return nil
 }
 
+func UpdateTemplate(user, name, templateString string) error {
+	template := config.Template{}
+	err := json.Unmarshal([]byte(templateString), &template)
+	if err != nil {
+		return errors.New("commands.UpdateTemplate: error parsing templateString:" +
+			"\n\t" + err.Error())
+	}
+
+	persist, err := persistence.Load(user)
+	if err != nil {
+		return errors.New("commands.UpdateTemplate: error loading persistence: " +
+			"\n\t" + err.Error())
+	}
+	_, found := persist.Config.Templates[name]
+	if ! found {
+		return errors.New("command.UpdateTemplate: template \""+name+"\" not found")
+	}
+
+	persist.Config.Templates[name] = template
+	persist.Save()
+
+	return nil
+}
+
 func DeleteTemplate(user, name string) error {
 	persist, err := persistence.Load(user)
 	if err != nil {
@@ -236,14 +259,13 @@ func GetGlobalSettings(user string) (string, error) {
 			"\n\t" + err.Error())
 	}
 
-	trelloString, err := json.Marshal(persist.Config.Trello)
+	settingsBytes, err := json.Marshal(persist.Config.GlobalSettings)
 	if err != nil {
-		return "", errors.New("commands.GetGlobalSettings: error marshalling trello: " +
+		return "", errors.New("commands.GetGlobalSettings: error marshalling settings: " +
 			"\n\t" + err.Error())
 	}
 
-	return fmt.Sprintf("{todoist_token: %s, timezone: %s, trello: %s}",
-		persist.Config.TodoistToken, persist.Config.Timezone, trelloString), nil
+	return string(settingsBytes), nil
 }
 
 func SetGlobalSetting(user, name, value string) error {
