@@ -130,8 +130,8 @@ func TestSettingsCommands(test *testing.T) {
 	conf := config.GlobalSettings{}
 	err = json.Unmarshal([]byte(settingsString), &conf)
 	if err != nil {
-		test.Log("test failure: error unmarshalling \"" + settingsString + "\": " +
-			"\n\t" + err.Error())
+		test.Logf("test failure: error unmarshalling \"%s\": \n\t%s",
+			settingsString, err.Error())
 	}
 	if conf.Trello.Key != trello.Key {
 		test.Logf("test failure: conf.Trello.Key wrong: " +
