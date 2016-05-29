@@ -7,28 +7,19 @@ import (
 	"time"
 )
 
-type GlobalSettings struct {
-	TodoistToken string           `json:"todoist_token"`
-	Timezone string               `json:"timezone,omitempty"`
-	Trello Trello                 `json:"trello,omitempty"`
+type Checklist struct {
+	TasksSource string   `json:"tasksSource"`
+	TasksTarget string   `json:"tasksTarget"`
+	IsScheduled bool     `json:"isScheduled"`
+	Tasks []string       `json:"tasks,omitempty"`
+	Trello *TrelloList   `json:"trello,omitempy"`
+	Schedule *Schedule   `json:"schedule,omitempty"`
+	Record *UpdateRecord `json:"updateRecord"`
 }
 
-type Config struct {
-	GlobalSettings
-	Templates map[string]Template `json:"templates"`
-}
-
-type Template struct {
-	Tasks []string     `json:"tasks,omitempty"`
-	Trello *Trello     `json:"trello,omitempy"`
-	Schedule *Schedule `json:"schedule,omitempty"`
-}
-
-type Trello struct {
-	Key string       `json:"key,omitempty"`
-	Token string     `json:"token,omitempty"`
-	BoardName string `json:"board_name,omitempty"`
-	ListName string  `json:"list_name,omitempty"`
+type TrelloList struct {
+	BoardName string `json:"boardName,omitempty"`
+	ListName string  `json:"listName,omitempty"`
 }
 
 type Schedule struct {
@@ -36,6 +27,12 @@ type Schedule struct {
 	Days []string    `json:"days,omitempty"`
 	Start string     `json:"start"`
 	End string       `json:"end,omitempty"`
+}
+
+type UpdateRecord struct {
+	Ids []int           `json:"ids"`
+	Time time.Time      `json:"time"`
+	AddTime time.Time   `json:"addTime"`
 }
 
 func New(filename string) (*Config, error) {
