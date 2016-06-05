@@ -5,7 +5,6 @@ import (
 )
 
 type SecurityInfo struct {
-	Email string            `json:"email"`
 	PasswordHash string     `json:"-"`
 	PasswordSalt string     `json:"-"`
 	Tokens []Token          `json:"tokens"`
@@ -17,7 +16,7 @@ type Token struct {
 	Value string                `json:"value"`
 	Permissions PermissionFlags `json:"permissions"`
 	Expiry time.Time            `json:"expiry"`
-	Description String          `json:"description"`
+	Description string          `json:"description"`
 }
 
 type PermissionFlags struct {

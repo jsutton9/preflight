@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"errors"
 	"github.com/jsutton9/preflight/config"
 	"github.com/jsutton9/preflight/security"
 	"gopkg.in/mgo.v2"
@@ -9,6 +10,7 @@ import (
 
 type User struct {
 	Id bson.ObjectId               `json:"id" bson:"_id,omitempty"`
+	Email string                   `json:"email"`
 	Settings GeneralSettings       `json:"generalSettings"`
 	Security security.SecurityInfo `json:"securityInfo"`
 	Checklists []config.Checklist  `json:"checklists"`
@@ -16,4 +18,73 @@ type User struct {
 
 type GeneralSettings struct {
 	Timezone string `json:"timezone"`
+}
+
+type Persister struct {
+	Session *mgo.Session
+	UserCollection *mgo.Collection
+}
+
+func (u *User) GetId() string {
+	return u.Id.Hex()
+}
+
+func New(url, database string) (*Persister, error) {
+	session, err := mgo.Dial(url)
+	if err != nil {
+		return nil, errors.New("persistence.New: " +
+			"error dialing \""+url+"\": \n\t" + err.Error())
+	}
+
+	collection := session.DB(database).C("users")
+
+	p := Persister{
+		Session: session,
+		UserCollection: collection,
+	}
+
+	return &p, nil
+}
+
+func (p Persister) GetUser(id string) (*User, error) {
+	user := &User{}
+	err := p.UserCollection.FindId(bson.ObjectIdHex(id)).One(user)
+	if err != nil {
+		return nil, errors.New("persistence.Persister.GetUser: " +
+			"error finding user id=" + id + ": \n\t" + err.Error())
+	}
+
+	return user, nil
+}
+
+func (p Persister) GetUserByEmail(email string) (*User, error) {
+	user := &User{}
+	err := p.UserCollection.Find(bson.M{"email": email}).One(user)
+	if err != nil {
+		return nil, errors.New("persistence.Persister.GetUserByEmail: " +
+			"error finding user email=" + email + ": \n\t" + err.Error())
+	}
+
+	return user, nil
+}
+
+func (p Persister) UpdateUser(user *User) error {
+	err := p.UserCollection.Update(bson.M{"_id": user.Id}, user)
+	if err != nil {
+		return errors.New("persistence.Persister.UpdateUser: " +
+			"error updating user:\n\t" + err.Error())
+	}
+
+	return nil
+}
+
+func (p Persister) AddUser(user *User) error {
+	user.Id = bson.NewObjectId()
+	err := p.UserCollection.Insert(&user)
+	if err != nil {
+		return errors.New("persistence.Persister.AddUser: " +
+			"error inserting user:\n\t" + err.Error())
+	}
+
+	return nil
 }

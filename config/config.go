@@ -1,9 +1,9 @@
 package config
 
 import (
-	"encoding/json"
-	"errors"
-	"io/ioutil"
+	//"encoding/json"
+	//"errors"
+	//"io/ioutil"
 	"time"
 )
 
@@ -35,7 +35,7 @@ type UpdateRecord struct {
 	AddTime time.Time   `json:"addTime"`
 }
 
-func New(filename string) (*Config, error) {
+/*func New(filename string) (*Config, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, errors.New("config.New: error reading \"" + filename + "\": " +
@@ -149,10 +149,10 @@ func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 /*
  * returns 1 for add, -1 for delete, 0 for no action
  */
-func (t Template) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, error) {
+/*func (t Template) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, error) {
 	action, updateTime, err := t.Schedule.Action(lastAdd, lastUpdate, now)
 	if err != nil {
 		err = errors.New("config.Template.Action: error: \n\t" + err.Error())
 	}
 	return action, updateTime, err
-}
+}*/
