@@ -1,9 +1,7 @@
 package config
 
 import (
-	//"encoding/json"
-	//"errors"
-	//"io/ioutil"
+	"errors"
 	"time"
 )
 
@@ -33,23 +31,6 @@ type UpdateRecord struct {
 	Ids []int           `json:"ids"`
 	Time time.Time      `json:"time"`
 	AddTime time.Time   `json:"addTime"`
-}
-
-/*func New(filename string) (*Config, error) {
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, errors.New("config.New: error reading \"" + filename + "\": " +
-			"\n\t" + err.Error())
-	}
-
-	config := Config{}
-	err = json.Unmarshal(data, &config)
-	if err != nil {
-		return &config, errors.New("config.New: error parsing \"" + filename + "\": " +
-			"\n\t" + err.Error())
-	}
-
-	return &config, nil
 }
 
 func parseWeekday(s string) (time.Weekday, error) {
@@ -149,10 +130,10 @@ func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 /*
  * returns 1 for add, -1 for delete, 0 for no action
  */
-/*func (t Template) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, error) {
-	action, updateTime, err := t.Schedule.Action(lastAdd, lastUpdate, now)
+func (c Checklist) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, error) {
+	action, updateTime, err := c.Schedule.Action(lastAdd, lastUpdate, now)
 	if err != nil {
 		err = errors.New("config.Template.Action: error: \n\t" + err.Error())
 	}
 	return action, updateTime, err
-}*/
+}

@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-func actionTest(test *testing.T, t Template, lastAdd time.Time, last time.Time,
+func actionTest(test *testing.T, s Schedule, lastAdd time.Time, last time.Time,
 		now time.Time, correctAction int) {
-	action, _, err := t.Action(lastAdd, last, now)
+	action, _, err := s.Action(lastAdd, last, now)
 	if err != nil {
 		test.Error(err)
 	} else if action != correctAction {
@@ -19,9 +19,9 @@ func actionTest(test *testing.T, t Template, lastAdd time.Time, last time.Time,
 	}
 }
 
-func negativeActionTest(test *testing.T, t Template, lastAdd time.Time, last time.Time,
+func negativeActionTest(test *testing.T, s Schedule, lastAdd time.Time, last time.Time,
 		now time.Time, incorrectAction int) {
-	action, _, err := t.Action(lastAdd, last, now)
+	action, _, err := s.Action(lastAdd, last, now)
 	if err != nil {
 		test.Error(err)
 	} else if action == incorrectAction {
@@ -34,19 +34,30 @@ func negativeActionTest(test *testing.T, t Template, lastAdd time.Time, last tim
 }
 
 func TestConfigScheduling(test *testing.T) {
-	conf, err := New("test_config.json")
-	if err != nil {
-		test.Fatal(err)
+	daily := Schedule{
+		Start: "9:00",
+	}
+	dailyEnd := Schedule{
+		Start: "9:00",
+		End: "17:00",
+	}
+	weekdays := Schedule{
+		Days: []string{"Monday", "Wednesday", "Friday"},
+		Start: "9:00",
+	}
+	weekdaysEnd := Schedule{
+		Days: []string{"Monday", "Wednesday", "Friday"},
+		Start: "9:00",
+		End: "17:00",
+	}
+	intervalWeekdays := Schedule{
+		Days: []string{"Monday", "Wednesday", "Friday"},
+		Interval: 3,
+		Start: "9:00",
 	}
 
-	daily := conf.Templates["daily"]
-	dailyEnd := conf.Templates["daily_end"]
-	weekdays := conf.Templates["weekdays"]
-	weekdaysEnd := conf.Templates["weekdays_end"]
-	intervalWeekdays := conf.Templates["interval_weekdays"]
-
 	format := "2006-01-02 15:04:05"
-	location, err := time.LoadLocation(conf.Timezone)
+	location, err := time.LoadLocation("America/Denver")
 	if err != nil {
 		test.Fatal(err)
 	}
