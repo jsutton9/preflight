@@ -1,4 +1,4 @@
-package config
+package checklist
 
 import (
 	"errors"
@@ -50,7 +50,7 @@ func parseWeekday(s string) (time.Weekday, error) {
 	case "Saturday", "saturday", "Sat", "sat":
 		return time.Saturday, nil
 	default:
-		return time.Sunday, errors.New("config.parseWeekday: unable to parse \"" + s + "\"")
+		return time.Sunday, errors.New("checklist.parseWeekday: unable to parse \"" + s + "\"")
 	}
 }
 
@@ -67,7 +67,7 @@ func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 		for _, weekdayString := range s.Days {
 			weekday, err := parseWeekday(weekdayString)
 			if err != nil {
-				return 0, lastUpdate, errors.New("config.Schedule.Action: " +
+				return 0, lastUpdate, errors.New("checklist.Schedule.Action: " +
 					"error parsing weekday: \n\t" + err.Error())
 			}
 			weekdayDelta := int(currentWeekday-weekday)
@@ -93,7 +93,7 @@ func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 
 	startTime, err := time.ParseInLocation("15:04", s.Start, location)
 	if err != nil {
-		return 0, lastUpdate, errors.New("config.Schedule.Action: error parsing start time " +
+		return 0, lastUpdate, errors.New("checklist.Schedule.Action: error parsing start time " +
 			"\"" + s.Start + "\": \n\t" + err.Error())
 	}
 	lastStart := time.Date(y, m, d, startTime.Hour(), startTime.Minute(), 0, 0, location)
@@ -105,7 +105,7 @@ func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 	if s.End != "" {
 		endTime, err := time.ParseInLocation("15:04", s.End, location)
 		if err != nil {
-			return 0, lastUpdate, errors.New("config.Schedule.Action: error parsing end time " +
+			return 0, lastUpdate, errors.New("checklist.Schedule.Action: error parsing end time " +
 				"\"" + s.End + "\": \n\t" + err.Error())
 		}
 		lastEnd = time.Date(y, m, d, endTime.Hour(), endTime.Minute(), 0, 0, location)
@@ -133,7 +133,7 @@ func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 func (c Checklist) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, error) {
 	action, updateTime, err := c.Schedule.Action(lastAdd, lastUpdate, now)
 	if err != nil {
-		err = errors.New("config.Template.Action: error: \n\t" + err.Error())
+		err = errors.New("checklist.Checklist.Action: error: \n\t" + err.Error())
 	}
 	return action, updateTime, err
 }
