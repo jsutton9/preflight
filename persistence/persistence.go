@@ -9,15 +9,16 @@ import (
 )
 
 type User struct {
-	Id bson.ObjectId                 `json:"id" bson:"_id,omitempty"`
-	Email string                     `json:"email"`
-	Settings GeneralSettings         `json:"generalSettings"`
-	Security security.SecurityInfo   `json:"securityInfo"`
-	Checklists []checklist.Checklist `json:"checklists"`
+	Id bson.ObjectId                          `json:"id" bson:"_id,omitempty"`
+	Email string                              `json:"email"`
+	Settings GeneralSettings                  `json:"generalSettings"`
+	Security security.SecurityInfo            `json:"securityInfo"`
+	Checklists map[string]checklist.Checklist `json:"checklists"`
 }
 
 type GeneralSettings struct {
-	Timezone string `json:"timezone"`
+	Timezone string    `json:"timezone"`
+	TrelloBoard string `json:"trelloBoard"`
 }
 
 type Persister struct {
