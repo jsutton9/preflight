@@ -10,8 +10,7 @@ import (
 
 type Client struct {
 	Url       string
-	Key       string
-	Token     string
+	Security  Security
 	BoardName string
 }
 
@@ -31,8 +30,18 @@ type list struct {
 	Cards []card `json:"cards"`
 }
 
+type Security struct {
+	Key string   `json:"key"`
+	Token string `json:"token"`
+}
+
+type ListKey struct {
+	Board string `json:"board"`
+	Name string  `json:"name"`
+}
+
 func (c Client) get(query string) ([]byte, error) {
-	request := c.Url + query + "&key=" + c.Key + "&token=" + c.Token
+	request := c.Url + query + "&key=" + c.Security.Key + "&token=" + c.Security.Token
 	response, err := http.Get(request)
 	if err != nil {
 		return nil, errors.New("trello.Client.get: error getting " + request + ": " +
@@ -57,7 +66,7 @@ func (c Client) get(query string) ([]byte, error) {
 	return body, nil
 }
 
-func (c Client) boardId() (string, error) {
+func (c Client) boardId(boardName string) (string, error) {
 	body, err := c.get("members/me/boards?fields=name")
 	if err != nil {
 		return "", errors.New("trello.Client.boardId: error getting boards: " +
@@ -72,12 +81,12 @@ func (c Client) boardId() (string, error) {
 	}
 
 	for _, board := range boards {
-		if board.Name == c.BoardName {
+		if board.Name == boardName {
 			return board.Id, nil
 		}
 	}
 
-	return "", errors.New("trello.Client.boardId: Board named \"" + c.BoardName + "\" not found.")
+	return "", errors.New("trello.Client.boardId: Board named \"" + boardName + "\" not found.")
 }
 
 func (c Client) cardNames(boardId, listName string) ([]string, error) {
@@ -107,33 +116,25 @@ func (c Client) cardNames(boardId, listName string) ([]string, error) {
 	return nil, errors.New("trello.Client.cardNames: list named \"" + listName + "\" not found.")
 }
 
-func New(key, token, boardName string) Client {
+func New(security Security, boardName string) Client {
 	return Client{
 		Url:       "https://api.trello.com/1/",
-		Key:       key,
-		Token:     token,
+		Security:  security,
 		BoardName: boardName,
 	}
 }
 
-func (c Client) Tasks(key, token, boardName, listName string) ([]string, error) {
-	newClient := c
-	if key != "" {
-		newClient.Key = key
-	}
-	if token != "" {
-		newClient.Token = token
-	}
-	if boardName != "" {
-		newClient.BoardName = boardName
+func (c Client) Tasks(listKey ListKey) ([]string, error) {
+	if listKey.Board == "" {
+		listKey.Board = c.BoardName
 	}
 
-	boardId, err := newClient.boardId()
+	boardId, err := c.boardId(listKey.Board)
 	if err != nil {
 		return nil, errors.New("trello.Client.Tasks: error getting board ID: " +
 			"\n\t" + err.Error())
 	}
-	tasks, err := newClient.cardNames(boardId, listName)
+	tasks, err := c.cardNames(boardId, listKey.Name)
 	if err != nil {
 		return nil, errors.New("trello.Client.Tasks: error getting card names: " +
 			"\n\t" + err.Error())

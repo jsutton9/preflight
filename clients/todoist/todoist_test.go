@@ -11,7 +11,7 @@ func TestPostTasks(t *testing.T) {
 		t.Fatal("missing environment variable TEST_API_KEY")
 	}
 
-	c := New(key)
+	c := New(Security{key})
 
 	id1, err := c.PostTask("foo")
 	if err != nil {

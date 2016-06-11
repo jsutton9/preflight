@@ -13,8 +13,12 @@ import (
 )
 
 type Client struct {
-	Url   string
-	Token string
+	Url      string
+	Security Security
+}
+
+type Security struct {
+	Token string `json:"token"`
 }
 
 type taskArgs struct {
@@ -45,11 +49,11 @@ type DeleteResponse struct {
 	SyncStatus map[string]string `json:"SyncStatus"`
 }
 
-func New(token string) Client {
+func New(security Security) Client {
 	rand.Seed(time.Now().UnixNano())
 	return Client{
 		Url:   "https://todoist.com/API/v6/sync",
-		Token: token,
+		Security: security,
 	}
 }
 
@@ -75,7 +79,7 @@ func (c Client) PostTask(task string) (int, error) {
 	}
 
 	cmdBytes, _ := json.Marshal(cmd)
-	request := c.Url + "?token=" + c.Token +
+	request := c.Url + "?token=" + c.Security.Token +
 		"&commands=[" + string(cmdBytes) + "]"
 
 	response, err := http.Post(request, "", strings.NewReader(""))
@@ -119,7 +123,7 @@ func (c Client) DeleteTask(id int) error {
 	}
 
 	cmdBytes, _ := json.Marshal(cmd)
-	request := c.Url + "?token=" + c.Token +
+	request := c.Url + "?token=" + c.Security.Token +
 	        "&commands=[" + string(cmdBytes) + "]"
 
 	response, err := http.Post(request, "", strings.NewReader(""))

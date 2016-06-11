@@ -2,22 +2,18 @@ package checklist
 
 import (
 	"errors"
+	"github.com/jsutton9/preflight/clients/trello"
 	"time"
 )
 
 type Checklist struct {
-	TasksSource string   `json:"tasksSource"`
-	TasksTarget string   `json:"tasksTarget"`
-	IsScheduled bool     `json:"isScheduled"`
-	Tasks []string       `json:"tasks,omitempty"`
-	Trello *TrelloList   `json:"trello,omitempy"`
-	Schedule *Schedule   `json:"schedule,omitempty"`
-	Record *UpdateRecord `json:"updateRecord"`
-}
-
-type TrelloList struct {
-	BoardName string `json:"boardName,omitempty"`
-	ListName string  `json:"listName,omitempty"`
+	TasksSource string     `json:"tasksSource"`
+	TasksTarget string     `json:"tasksTarget"`
+	IsScheduled bool       `json:"isScheduled"`
+	Tasks []string         `json:"tasks,omitempty"`
+	Trello *trello.ListKey `json:"trello,omitempy"`
+	Schedule *Schedule     `json:"schedule,omitempty"`
+	Record *UpdateRecord   `json:"updateRecord"`
 }
 
 type Schedule struct {
