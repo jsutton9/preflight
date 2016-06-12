@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"testing"
+	"github.com/jsutton9/preflight/security"
 )
 
 func TestGetUser(t *testing.T) {
@@ -41,6 +42,41 @@ func TestGetUserByEmail(t *testing.T) {
 		t.Fatal(err)
 	}
 	user, err = p.GetUserByEmail(email)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if user.Email != email {
+		t.Logf("email wrong: expected \"%s\", got \"%s\"", email, user.Email)
+		t.Fail()
+	}
+}
+
+func TestGetUserByToken(t *testing.T) {
+	email := "foo@abc"
+	sec, err := security.New("password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	permissions := security.PermissionFlags{ChecklistRead:true}
+	token, err := sec.AddToken(permissions, 24, "persistence test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	user := &User{
+		Email: email,
+		Security: sec,
+	}
+
+	p, err := New("localhost", "preflight-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = p.AddUser(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, err = p.GetUserByToken(token.Secret)
 	if err != nil {
 		t.Fatal(err)
 	}

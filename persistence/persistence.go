@@ -12,7 +12,7 @@ type User struct {
 	Id bson.ObjectId                          `json:"id" bson:"_id,omitempty"`
 	Email string                              `json:"email"`
 	Settings GeneralSettings                  `json:"generalSettings"`
-	Security security.SecurityInfo            `json:"securityInfo"`
+	Security *security.SecurityInfo           `json:"securityInfo"`
 	Checklists map[string]checklist.Checklist `json:"checklists"`
 }
 
@@ -64,6 +64,17 @@ func (p Persister) GetUserByEmail(email string) (*User, error) {
 	if err != nil {
 		return nil, errors.New("persistence.Persister.GetUserByEmail: " +
 			"error finding user email=" + email + ": \n\t" + err.Error())
+	}
+
+	return user, nil
+}
+
+func (p Persister) GetUserByToken(secret string) (*User, error) {
+	user := &User{}
+	err := p.UserCollection.Find(bson.M{"security.tokens.secret": secret}).One(user)
+	if err != nil {
+		return nil, errors.New("persistence.Persister.GetUserByToken: " +
+			"error finding user by token: \n\t" + err.Error())
 	}
 
 	return user, nil

@@ -40,13 +40,12 @@ type PermissionFlags struct {
 }
 
 func New(password string) (*SecurityInfo, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	sec := SecurityInfo{}
+	err := sec.SetPassword(password)
 	if err != nil {
-		return nil, errors.New("security.New: error hashing password: " +
+		return nil, errors.New("security.New: error setting password: " +
 			"\n\t" + err.Error())
 	}
-
-	sec := SecurityInfo{PasswordHash: hash}
 	return &sec, nil
 }
 
@@ -56,6 +55,17 @@ func (s *SecurityInfo) ValidatePassword(password string) bool {
 		return true
 	}
 	return false
+}
+
+func (s *SecurityInfo) SetPassword(newPassword string) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("security.SetPassword: error hashing password: " +
+			"\n\t" + err.Error())
+	}
+	s.PasswordHash = hash
+
+	return nil
 }
 
 func (s *SecurityInfo) ValidateToken(secret string, permissions PermissionFlags) bool {
