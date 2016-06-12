@@ -7,6 +7,7 @@ import (
 	"github.com/jsutton9/preflight/clients/todoist"
 	"github.com/jsutton9/preflight/clients/trello"
 	"golang.org/x/crypto/bcrypt"
+	"math/big"
 	"time"
 )
 
@@ -38,18 +39,18 @@ type PermissionFlags struct {
 	GeneralWrite bool    `json:"generalWrite"`
 }
 
-func New(password string) SecurityInfo, error {
+func New(password string) (*SecurityInfo, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return errors.New("security.New: error hashing password: " +
+		return nil, errors.New("security.New: error hashing password: " +
 			"\n\t" + err.Error())
 	}
 
-	sec := SecurityInfo{PasswordHash:hash}
-	return sec
+	sec := SecurityInfo{PasswordHash: hash}
+	return &sec, nil
 }
 
-func (s SecurityInfo) ValidatePassword(password string) bool {
+func (s *SecurityInfo) ValidatePassword(password string) bool {
 	err := bcrypt.CompareHashAndPassword(s.PasswordHash, []byte(password))
 	if err == nil {
 		return true
@@ -57,8 +58,8 @@ func (s SecurityInfo) ValidatePassword(password string) bool {
 	return false
 }
 
-func (s SecurityInfo) ValidateToken(secret string, permissions PermissionFlags) bool {
-	for _, token in s.Tokens {
+func (s *SecurityInfo) ValidateToken(secret string, permissions PermissionFlags) bool {
+	for _, token := range s.Tokens {
 		if token.Secret == secret {
 			now := time.Now()
 			if now.After(token.Expiry) {
@@ -78,24 +79,24 @@ func (s SecurityInfo) ValidateToken(secret string, permissions PermissionFlags) 
 	return false
 }
 
-func (s SecurityInfo) AddToken(permissions PermissionFlags, expiryHours int, description string) (Token, error) {
+func (s *SecurityInfo) AddToken(permissions PermissionFlags, expiryHours int, description string) (*Token, error) {
 	now := time.Now()
 	dur := time.Duration(expiryHours)*time.Hour
-	expiry = now.Add(dur)
+	expiry := now.Add(dur)
 
 	intId, err := rand.Int(rand.Reader, big.NewInt(ID_BITS))
 	if err != nil {
-		return "", errors.New("security.AddToken: error generating id: " +
+		return nil, errors.New("security.AddToken: error generating id: " +
 			"\n\t" + err.Error())
 	}
-	id := fmt.SPrintf("%0x", intId)
+	id := fmt.Sprintf("%0x", intId)
 
 	intSecret, err := rand.Int(rand.Reader, big.NewInt(SECRET_BITS))
 	if err != nil {
-		return "", errors.New("security.AddToken: error generating secret: " +
+		return nil, errors.New("security.AddToken: error generating secret: " +
 			"\n\t" + err.Error())
 	}
-	secret := fmt.SPrintf("%0x", intSecret)
+	secret := fmt.Sprintf("%0x", intSecret)
 
 	token := Token{
 		Id: id,
@@ -105,12 +106,12 @@ func (s SecurityInfo) AddToken(permissions PermissionFlags, expiryHours int, des
 		Description: description,
 	}
 
-	append(s.Tokens, token)
+	s.Tokens = append(s.Tokens, token)
 
-	return token, nil
+	return &token, nil
 }
 
-func (s SecurityInfo) DeleteToken(id string) error {
+func (s *SecurityInfo) DeleteToken(id string) error {
 	for i, token := range s.Tokens {
 		if token.Id == id {
 			l := len(s.Tokens)
