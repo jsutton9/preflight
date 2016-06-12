@@ -35,6 +35,17 @@ func TestValidateToken(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if len(token.Id) != SECRET_BITS/4 {
+		t.Log("test failure, AddToken: ")
+		t.Logf("\texpected %d char id, got %s", ID_BITS/4, token.Id)
+		t.Fail()
+	}
+	if len(token.Secret) != SECRET_BITS/4 {
+		t.Log("test failure, AddToken: ")
+		t.Logf("\texpected %d char secret, got %s", SECRET_BITS/4, token.Secret)
+		t.Fail()
+	}
+
 	if ! sec.ValidateToken(token.Secret, permissions) {
 		t.Log("test failure, ValidateToken: expected true, got false")
 		t.Fail()

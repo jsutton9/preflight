@@ -84,19 +84,23 @@ func (s *SecurityInfo) AddToken(permissions PermissionFlags, expiryHours int, de
 	dur := time.Duration(expiryHours)*time.Hour
 	expiry := now.Add(dur)
 
-	intId, err := rand.Int(rand.Reader, big.NewInt(ID_BITS))
+	idMax := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(ID_BITS), nil)
+	intId, err := rand.Int(rand.Reader, idMax)
 	if err != nil {
 		return nil, errors.New("security.AddToken: error generating id: " +
 			"\n\t" + err.Error())
 	}
-	id := fmt.Sprintf("%0x", intId)
+	idPattern := fmt.Sprintf("%%0%dx", ID_BITS/4)
+	id := fmt.Sprintf(idPattern, intId)
 
-	intSecret, err := rand.Int(rand.Reader, big.NewInt(SECRET_BITS))
+	secretMax := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(SECRET_BITS), nil)
+	intSecret, err := rand.Int(rand.Reader, secretMax)
 	if err != nil {
 		return nil, errors.New("security.AddToken: error generating secret: " +
 			"\n\t" + err.Error())
 	}
-	secret := fmt.Sprintf("%0x", intSecret)
+	secretPattern := fmt.Sprintf("%%0%dx", SECRET_BITS/4)
+	secret := fmt.Sprintf(secretPattern, intSecret)
 
 	token := Token{
 		Id: id,
