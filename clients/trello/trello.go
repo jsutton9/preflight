@@ -124,7 +124,7 @@ func New(security Security, boardName string) Client {
 	}
 }
 
-func (c Client) Tasks(listKey ListKey) ([]string, error) {
+func (c Client) Tasks(listKey *ListKey) ([]string, error) {
 	if listKey.Board == "" {
 		listKey.Board = c.BoardName
 	}

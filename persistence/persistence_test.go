@@ -7,13 +7,13 @@ import (
 
 func TestGetUser(t *testing.T) {
 	email := "foo@bar"
-	user := &User{Email: email}
+	password := "password"
 
 	p, err := New("localhost", "preflight-test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = p.AddUser(user)
+	user, err := p.AddUser(email, password)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,17 +31,17 @@ func TestGetUser(t *testing.T) {
 
 func TestGetUserByEmail(t *testing.T) {
 	email := "foo@baz"
-	user := &User{Email: email}
+	password := "password"
 
 	p, err := New("localhost", "preflight-test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = p.AddUser(user)
+	_, err = p.AddUser(email, password)
 	if err != nil {
 		t.Fatal(err)
 	}
-	user, err = p.GetUserByEmail(email)
+	user, err := p.GetUserByEmail(email)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,28 +54,27 @@ func TestGetUserByEmail(t *testing.T) {
 
 func TestGetUserByToken(t *testing.T) {
 	email := "foo@abc"
-	sec, err := security.New("password")
-	if err != nil {
-		t.Fatal(err)
-	}
-	permissions := security.PermissionFlags{ChecklistRead:true}
-	token, err := sec.AddToken(permissions, 24, "persistence test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	user := &User{
-		Email: email,
-		Security: sec,
-	}
+	password := "password"
 
 	p, err := New("localhost", "preflight-test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = p.AddUser(user)
+	user, err := p.AddUser(email, password)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	permissions := security.PermissionFlags{ChecklistRead:true}
+	token, err := user.Security.AddToken(permissions, 24, "persistence test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = p.UpdateUser(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	user, err = p.GetUserByToken(token.Secret)
 	if err != nil {
 		t.Fatal(err)
@@ -90,13 +89,13 @@ func TestGetUserByToken(t *testing.T) {
 func TestUpdateUser(t *testing.T) {
 	emailBefore := "abc@foo"
 	emailAfter := "def@bar"
-	user := &User{Email: emailBefore}
+	password := "password"
 
 	p, err := New("localhost", "preflight-test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = p.AddUser(user)
+	user, err := p.AddUser(emailBefore, password)
 	if err != nil {
 		t.Fatal(err)
 	}

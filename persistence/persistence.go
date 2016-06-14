@@ -47,6 +47,38 @@ func New(url, database string) (*Persister, error) {
 	return &p, nil
 }
 
+func (p Persister) AddUser(email, password string) (*User, error) {
+	security, err := security.New(password)
+	if err != nil {
+		return nil, errors.New("persistence.Persister.AddUser: " +
+			"error creating security:\n\t" + err.Error())
+	}
+	user := User{
+		Id: bson.NewObjectId(),
+		Email: email,
+		Settings: GeneralSettings{},
+		Security: security,
+		Checklists: make(map[string]checklist.Checklist),
+	}
+	err = p.UserCollection.Insert(&user)
+	if err != nil {
+		return nil, errors.New("persistence.Persister.AddUser: " +
+			"error inserting user:\n\t" + err.Error())
+	}
+
+	return &user, nil
+}
+
+func (p Persister) UpdateUser(user *User) error {
+	err := p.UserCollection.Update(bson.M{"_id": user.Id}, user)
+	if err != nil {
+		return errors.New("persistence.Persister.UpdateUser: " +
+			"error updating user:\n\t" + err.Error())
+	}
+
+	return nil
+}
+
 func (p Persister) GetUser(id string) (*User, error) {
 	user := &User{}
 	err := p.UserCollection.FindId(bson.ObjectIdHex(id)).One(user)
@@ -78,25 +110,4 @@ func (p Persister) GetUserByToken(secret string) (*User, error) {
 	}
 
 	return user, nil
-}
-
-func (p Persister) UpdateUser(user *User) error {
-	err := p.UserCollection.Update(bson.M{"_id": user.Id}, user)
-	if err != nil {
-		return errors.New("persistence.Persister.UpdateUser: " +
-			"error updating user:\n\t" + err.Error())
-	}
-
-	return nil
-}
-
-func (p Persister) AddUser(user *User) error {
-	user.Id = bson.NewObjectId()
-	err := p.UserCollection.Insert(&user)
-	if err != nil {
-		return errors.New("persistence.Persister.AddUser: " +
-			"error inserting user:\n\t" + err.Error())
-	}
-
-	return nil
 }

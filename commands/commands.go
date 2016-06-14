@@ -3,20 +3,19 @@ package commands
 import (
 	"encoding/json"
 	"errors"
+	"github.com/jsutton9/preflight/checklist"
 	"github.com/jsutton9/preflight/clients/todoist"
 	"github.com/jsutton9/preflight/clients/trello"
-	"github.com/jsutton9/preflight/config"
 	"github.com/jsutton9/preflight/persistence"
+	"github.com/jsutton9/preflight/security"
 	"sort"
 	"time"
 )
 
 type updateJob struct {
-	Name string
-	Template config.Template
+	Checklist checklist.Checklist
 	Action int
 	Time time.Time
-	Record persistence.UpdateRecord
 }
 
 type jobsByTime []updateJob
@@ -31,64 +30,86 @@ func (l jobsByTime) Less(i, j int) bool {
 	return l[i].Time.Before(l[j].Time)
 }
 
-type templateRequest struct {
-	Name     string          `json:"name"`
-	Template config.Template `json:"template"`
+type checklistRequest struct {
+	Name      string              `json:"name"`
+	Checklist checklist.Checklist `json:"checklist"`
 }
 
-func SetConfig(user string, path string) error {
-	conf, err := config.New(path)
+func AddUser(email string, password string, persister *persistence.Persister) (string, error) {
+	user, err := persister.AddUser(email, password)
 	if err != nil {
-		return errors.New("commands.SetConfig: error creating config: \n\t" + err.Error())
+		return "", errors.New("commands.AddUser: error adding user \"" +
+			email + "\":\n\t" + err.Error())
 	}
-
-	persist, err := persistence.Load(user)
-	if err != nil {
-		return errors.New("commands.SetConfig: error loading persistence: \n\t" + err.Error())
-	}
-
-	persist.Config = *conf
-	err = persist.Save()
-	if err != nil {
-		return errors.New("commands.SetConfig: error saving persistence: \n\t" + err.Error())
-	}
-
-	return nil
+	return user.GetId(), nil
 }
 
-func Update(user string) error {
-	persist, err := persistence.Load(user)
+func GetUserIdFromEmail(email string, persister *persistence.Persister) (string, error) {
+	user, err := persister.GetUserByEmail(email)
 	if err != nil {
-		return errors.New("commands.Update: error loading persistence: \n\t" + err.Error())
+		return "", errors.New("commands.GetUserIdFromEmail: error getting user: " +
+			"\n\t" + err.Error())
 	}
 
-	c := todoist.New(persist.Config.TodoistToken)
-	tr := persist.Config.Trello
-	trelloClient := trello.New(tr.Key, tr.Token, tr.BoardName)
+	return user.GetId(), nil
+}
 
-	loc, err := time.LoadLocation(persist.Config.Timezone)
+func GetUserIdFromToken(secret string, persister *persistence.Persister) (string, error) {
+	user, err := persister.GetUserByToken(secret)
+	if err != nil {
+		return "", errors.New("commands.GetUserIdFromToken: error getting user: " +
+			"\n\t" + err.Error())
+	}
+
+	return user.GetId(), nil
+}
+
+func AddToken(id string, permissions security.PermissionFlags, expiryHours int, description string, persister *persistence.Persister) (*security.Token, error) {
+	user, err := persister.GetUser(id)
+	if err != nil {
+		return nil, errors.New("commands.AddToken: error getting user: " +
+			"\n\t" + err.Error())
+	}
+
+	token, err := user.Security.AddToken(permissions, expiryHours, description)
+	if err != nil {
+		return nil, errors.New("commands.AddToken: error adding token: " +
+			"\n\t" + err.Error())
+	}
+
+	return token, nil
+}
+
+func Update(id string, persister *persistence.Persister) error {
+	user, err := persister.GetUser(id)
+	if err != nil {
+		return errors.New("commands.Update: error getting user: \n\t" + err.Error())
+	}
+
+	td := todoist.New(user.Security.Todoist)
+	trelloClient := trello.New(user.Security.Trello, user.Settings.TrelloBoard)
+
+	loc, err := time.LoadLocation(user.Settings.Timezone)
 	if err != nil {
 		return errors.New("commands.Update: error loading timezone: \n\t" + err.Error())
 	}
 	now := time.Now().In(loc)
 
 	jobs := make(jobsByTime, 0)
-	for name, template := range persist.Config.Templates {
-		record, found := persist.UpdateHistory[name]
-		if ! found {
-			persist.UpdateHistory[name] = persistence.UpdateRecord{Ids:make([]int, 0)}
+	for _, cl := range user.Checklists {
+		record := cl.Record
+		if record == nil {
+			cl.Record = &checklist.UpdateRecord{Ids:make([]int,0)}
 		}
-		action, updateTime, err := template.Action(record.AddTime, record.Time, now)
+		action, updateTime, err := cl.Action(record.AddTime, record.Time, now)
 		if err != nil {
 			return errors.New("commands.Update: error determining action: \n\t" + err.Error())
 		}
 		if action != 0 {
 			jobs = append(jobs, updateJob{
-				Name: name,
-				Template: template,
+				Checklist: cl,
 				Action: action,
 				Time: updateTime,
-				Record: record,
 			})
 		}
 	}
@@ -96,228 +117,241 @@ func Update(user string) error {
 	sort.Stable(jobs)
 	for _, job := range jobs {
 		if job.Action > 0 {
-			job.Record.Ids, err = postTasks(c, trelloClient, job.Template)
+			job.Checklist.Record.Ids, err = postTasks(td, trelloClient, job.Checklist)
 			if err != nil {
 				return errors.New("commands.Update: error posting tasks: \n\t" + err.Error())
 			}
-			job.Record.AddTime = now
+			job.Checklist.Record.AddTime = now
 		} else {
-			for _, id := range job.Record.Ids {
-				err := c.DeleteTask(id)
+			for _, id := range job.Checklist.Record.Ids {
+				err = td.DeleteTask(id)
 				if err != nil {
 					return errors.New("commands.Update: error deleting tasks: \n\t" + err.Error())
 				}
 			}
-			job.Record.Ids = make([]int, 0)
+			job.Checklist.Record.Ids = make([]int, 0)
 		}
-		job.Record.Time = now
-		persist.UpdateHistory[job.Name] = job.Record
-		persist.Save()
+		job.Checklist.Record.Time = now
+	}
+
+	err = persister.UpdateUser(user)
+	if err != nil {
+		return errors.New("commands.Update: error updating user in db: " +
+			"\n\t" + err.Error())
 	}
 
 	return nil
 }
 
-func Invoke(user, name string) error {
-	persist, err := persistence.Load(user)
+func Invoke(id string, name string, persister *persistence.Persister) error {
+	user, err := persister.GetUser(id)
 	if err != nil {
-		return errors.New("commands.Invoke: error loading persistence: \n\t" + err.Error())
+		return errors.New("commands.Invoke: error getting user: \n\t" + err.Error())
 	}
-	template, found := persist.Config.Templates[name]
+	cl, found := user.Checklists[name]
 	if ! found {
-		return errors.New("commands.Invoke: template \""+name+"\" not found")
+		return errors.New("commands.Invoke: checklist \""+name+"\" not found")
 	}
 
-	todoistClient := todoist.New(persist.Config.TodoistToken)
-	tr := persist.Config.Trello
-	trelloClient := trello.New(tr.Key, tr.Token, tr.BoardName)
-	record, found := persist.UpdateHistory[name]
-	if ! found {
-		persist.UpdateHistory[name] = persistence.UpdateRecord{Ids:make([]int, 0)}
+	todoistClient := todoist.New(user.Security.Todoist)
+	trelloClient := trello.New(user.Security.Trello, user.Settings.TrelloBoard)
+	if cl.Record == nil {
+		cl.Record = &checklist.UpdateRecord{Ids:make([]int, 0)}
 	}
 
-	loc, err := time.LoadLocation(persist.Config.Timezone)
+	// TODO: move time and ids updates to postTasks?
+	loc, err := time.LoadLocation(user.Settings.Timezone)
 	if err != nil {
 		return errors.New("commands.Invoke: error loading timezone: \n\t" + err.Error())
 	}
 	now := time.Now().In(loc)
 
-	record.Ids, err = postTasks(todoistClient, trelloClient, template)
+	cl.Record.Ids, err = postTasks(todoistClient, trelloClient, cl)
 	if err != nil {
 		return errors.New("commands.Invoke: error posting tasks: \n\t" + err.Error())
 	}
-	record.Time = now
-	persist.UpdateHistory[name] = record
-	persist.Save()
+	cl.Record.Time = now
+	err = persister.UpdateUser(user)
+	if err != nil {
+		return errors.New("commands.Invoke: error updating user in db: " +
+			"\n\t" + err.Error())
+	}
 
 	return nil
 }
 
-func AddTemplate(user, templateReqString string) error {
-	request := templateRequest{}
-	err := json.Unmarshal([]byte(templateReqString), &request)
+func AddChecklist(id, checklistReqString string, persister *persistence.Persister) error {
+	request := checklistRequest{}
+	err := json.Unmarshal([]byte(checklistReqString), &request)
 	if err != nil {
-		return errors.New("commands.AddTemplate: error parsing templateReqString: " +
+		return errors.New("commands.AddChecklist: error parsing checklistReqString: " +
 			"\n\t" + err.Error())
 	}
 
-	persist, err := persistence.Load(user)
+	user, err := persister.GetUser(id)
 	if err != nil {
-		return errors.New("commands.AddTemplate: error loading persistence: \n\t" + err.Error())
+		return errors.New("commands.AddChecklist: error getting user: \n\t" + err.Error())
 	}
-	_, found := persist.Config.Templates[request.Name]
+	_, found := user.Checklists[request.Name]
 	if found {
-		return errors.New("commands.AddTemplate: template \"" + request.Name + "\" already exists")
+		return errors.New("commands.AddChecklist: checklist \"" +
+				request.Name + "\" already exists")
 	}
 
-	persist.Config.Templates[request.Name] = request.Template
-	persist.Save()
+	user.Checklists[request.Name] = request.Checklist
+	err = persister.UpdateUser(user)
+	if err != nil {
+		return errors.New("commands.AddChecklist: error updating user in db: " +
+			"\n\t" + err.Error())
+	}
 
 	return nil
 }
 
-func UpdateTemplate(user, name, templateString string) error {
-	template := config.Template{}
-	err := json.Unmarshal([]byte(templateString), &template)
+func UpdateChecklist(id, name, checklistString string, persister *persistence.Persister) error {
+	cl := checklist.Checklist{}
+	err := json.Unmarshal([]byte(checklistString), &cl)
 	if err != nil {
-		return errors.New("commands.UpdateTemplate: error parsing templateString:" +
+		return errors.New("commands.UpdateChecklist: error parsing templateString:" +
 			"\n\t" + err.Error())
 	}
 
-	persist, err := persistence.Load(user)
+	user, err := persister.GetUser(id)
 	if err != nil {
-		return errors.New("commands.UpdateTemplate: error loading persistence: " +
+		return errors.New("commands.UpdateChecklist: error getting user: " +
 			"\n\t" + err.Error())
 	}
-	_, found := persist.Config.Templates[name]
+	_, found := user.Checklists[name]
 	if ! found {
-		return errors.New("command.UpdateTemplate: template \""+name+"\" not found")
+		return errors.New("command.UpdateChecklist: checklist \""+name+"\" not found")
 	}
 
-	persist.Config.Templates[name] = template
-	persist.Save()
+	user.Checklists[name] = cl
+	err = persister.UpdateUser(user)
+	if err != nil {
+		return errors.New("commands.UpdateChecklist: error updating user in db: " +
+			"\n\t" + err.Error())
+	}
 
 	return nil
 }
 
-func DeleteTemplate(user, name string) error {
-	persist, err := persistence.Load(user)
+func DeleteChecklist(id, name string, persister *persistence.Persister) error {
+	user, err := persister.GetUser(id)
 	if err != nil {
-		return errors.New("commands.DeleteTemplate: error loading persistence: \n\t" + err.Error())
+		return errors.New("commands.DeleteChecklist: error getting user: \n\t" + err.Error())
 	}
-	_, found := persist.Config.Templates[name]
+	_, found := user.Checklists[name]
 	if ! found {
-		return errors.New("commands.DeleteTemplate: template not found")
+		return errors.New("commands.DeleteChecklist: checklist \""+name+"\"not found")
 	}
 
-	delete(persist.Config.Templates, name)
-	persist.Save()
+	delete(user.Checklists, name)
+
+	err = persister.UpdateUser(user)
+	if err != nil {
+		return errors.New("commands.DeleteChecklist: error updating user in db: " +
+			"\n\t" + err.Error())
+	}
 
 	return nil
 }
 
-func GetTemplateString(user, name string) (string, error) {
-	persist, err := persistence.Load(user)
+func GetChecklistString(id, name string, persister *persistence.Persister) (string, error) {
+	user, err := persister.GetUser(id)
 	if err != nil {
-		return "", errors.New("commands.GetTemplateString: error loading persistence: " +
+		return "", errors.New("commands.GetChecklistString: error getting user: " +
 			"\n\t" + err.Error())
 	}
-	template, found := persist.Config.Templates[name]
+	cl, found := user.Checklists[name]
 	if ! found {
-		return "", errors.New("commands.GetTemplateString: template \"" + name + "\" not found")
+		return "", errors.New("commands.GetChecklistString: checklist \"" + name + "\" not found")
 	}
 
-	jsonBytes, err := json.Marshal(template)
+	jsonBytes, err := json.Marshal(cl)
 	if err != nil {
-		return "", errors.New("commands.GetTemplateString: error marshalling template: " +
+		return "", errors.New("commands.GetChecklistString: error marshalling checklist: " +
 			"\n\t" + err.Error())
 	}
 
 	return string(jsonBytes[:]), nil
 }
 
-func GetTemplatesString(user string) (string, error) {
-	persist, err := persistence.Load(user)
+func GetChecklistsString(id string, persister *persistence.Persister) (string, error) {
+	user, err := persister.GetUser(id)
 	if err != nil {
-		return "", errors.New("commands.GetTemplatesString: error loading persistence: " +
+		return "", errors.New("commands.GetChecklistsString: error getting user: " +
 			"\n\t" + err.Error())
 	}
 
-	jsonBytes, err := json.Marshal(persist.Config.Templates)
+	jsonBytes, err := json.Marshal(user.Checklists)
 	if err != nil {
-		return "", errors.New("commands.GetTemplatesString: error marshalling templates: " +
+		return "", errors.New("commands.GetChecklistsString: error marshalling checklists: " +
 			"\n\t" + err.Error())
 	}
 
 	return string(jsonBytes[:]), nil
 }
 
-func GetGlobalSettings(user string) (string, error) {
-	persist, err := persistence.Load(user)
+func GetGeneralSettings(id string, persister *persistence.Persister) (string, error) {
+	user, err := persister.GetUser(id)
 	if err != nil {
-		return "", errors.New("commands.GetGlobalSettings: error loading persistence: " +
+		return "", errors.New("commands.GetGeneralSettings: error gettingUser: " +
 			"\n\t" + err.Error())
 	}
 
-	settingsBytes, err := json.Marshal(persist.Config.GlobalSettings)
+	settingsBytes, err := json.Marshal(user.Settings)
 	if err != nil {
-		return "", errors.New("commands.GetGlobalSettings: error marshalling settings: " +
+		return "", errors.New("commands.GetGeneralSettings: error marshalling settings: " +
 			"\n\t" + err.Error())
 	}
 
 	return string(settingsBytes), nil
 }
 
-func SetGlobalSetting(user, name, value string) error {
-	persist, err := persistence.Load(user)
+func SetGeneralSetting(id, name, value string, persister *persistence.Persister) error {
+	user, err := persister.GetUser(id)
 	if err != nil {
-		return errors.New("commands.SetGlobalSetting: error loading persistence: " +
+		return errors.New("commands.SetGeneralSetting: error getting user: " +
 			"\n\t" + err.Error())
 	}
 
-	if name == "todoist_token" {
-		persist.Config.TodoistToken = value
-	} else if name == "timezone" {
-		persist.Config.Timezone = value
-	} else if name == "trello" {
-		trello := config.Trello{}
-		err = json.Unmarshal([]byte(value), &trello)
-		if err != nil {
-			return errors.New("commands.SetGlobalSetting: error unmarshalling trello: " +
-				"\n\t" + err.Error())
-		}
-		persist.Config.Trello = trello
+	if name == "timezone" {
+		user.Settings.Timezone = value
+	} else if name == "trelloBoard" {
+		user.Settings.TrelloBoard = value
 	} else {
-		return errors.New("commands.SetGlobalSetting: setting \"" + name + "\" not recognized")
+		return errors.New("commands.SetGeneralSetting: setting \"" +
+			name + "\" not recognized")
 	}
 
-	persist.Save()
+	persister.UpdateUser(user)
 	return nil
 }
 
-func postTasks(c todoist.Client, trl trello.Client, template config.Template) ([]int, error) {
+func postTasks(c todoist.Client, trl trello.Client, checklist checklist.Checklist) ([]int, error) {
 	ids := make([]int, 0)
 
-	if template.Tasks != nil {
-		for _, task := range template.Tasks {
+	if checklist.TasksSource == "preflight" {
+		for _, task := range checklist.Tasks {
 			id, err := c.PostTask(task)
 			if err != nil {
-				return ids, errors.New("commands.postTasks: error posting tasks: \n\t" + err.Error())
+				return ids, errors.New("commands.postTasks: error posting tasks:" +
+					"\n\t" + err.Error())
 			}
 			ids = append(ids, id)
 		}
-	}
-
-	if template.Trello != nil && template.Trello.ListName != "" {
-		p := template.Trello
-		tasks, err := trl.Tasks(p.Key, p.Token, p.BoardName, p.ListName)
+	} else if checklist.TasksSource == "trello" {
+		tasks, err := trl.Tasks(checklist.Trello)
 		if err != nil {
-			return ids, errors.New("commands.postTasks: error getting tasks from trello: \n\t" + err.Error())
+			return ids, errors.New("commands.postTasks: error getting tasks from trello:" +
+				"\n\t" + err.Error())
 		}
 		for _, task := range tasks {
 			id, err := c.PostTask(task)
 			if err != nil {
-				return ids, errors.New("commands.postTasks: error posting tasks: \n\t" + err.Error())
+				return ids, errors.New("commands.postTasks: error posting tasks:" +
+					"\n\t" + err.Error())
 			}
 			ids = append(ids, id)
 		}
