@@ -77,6 +77,12 @@ func AddToken(id string, permissions security.PermissionFlags, expiryHours int, 
 			"\n\t" + err.Error())
 	}
 
+	err = persister.UpdateUser(user)
+	if err != nil {
+		return nil, errors.New("commands.AddToken: error updating user in db: " +
+			"\n\t" + err.Error())
+	}
+
 	return token, nil
 }
 
@@ -325,7 +331,11 @@ func SetGeneralSetting(id, name, value string, persister *persistence.Persister)
 			name + "\" not recognized")
 	}
 
-	persister.UpdateUser(user)
+	err = persister.UpdateUser(user)
+	if err != nil {
+		return errors.New("commands.SetGeneralSettings: error updating user in db: " +
+			"\n\t" + err.Error())
+	}
 	return nil
 }
 

@@ -12,7 +12,7 @@ type User struct {
 	Id bson.ObjectId                          `json:"id" bson:"_id,omitempty"`
 	Email string                              `json:"email"`
 	Settings GeneralSettings                  `json:"generalSettings"`
-	Security *security.SecurityInfo           `json:"securityInfo"`
+	Security *security.SecurityInfo           `json:"security"`
 	Checklists map[string]checklist.Checklist `json:"checklists"`
 }
 
