@@ -177,7 +177,7 @@ func TestChecklistCommands(t *testing.T) {
 	}
 }
 
-func testSettingsCommands(t *Testing.T) {
+func testSettingsCommands(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 	persister, err := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
@@ -185,8 +185,27 @@ func testSettingsCommands(t *Testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	timezone := "Africa/Abidjan"
 
-	//TODO
+	err = SetGeneralSetting(id, "timezone", timezone, persister)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settingsString, err := GetGeneralSettings(id, persister)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := new(persistence.GeneralSettings)
+	err = json.Unmarshal([]byte(settingsString), settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if settings.Timezone != timezone {
+		t.Log("test failure: timezone incorrect: " +
+			"\n\texpected %s, got %s", timezone, settings.Timezone)
+		t.Fail()
+	}
 }
 
 //TODO: test Update, Invoke
