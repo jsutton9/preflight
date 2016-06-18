@@ -20,6 +20,8 @@ func main() {
 	usage += "\tpreflight delete-checklist EMAIL CHECKLIST_NAME\n"
 	usage += "\tpreflight set-todoist-token EMAIL TOKEN\n"
 	usage += "\tpreflight set-trello-token EMAIL TOKEN\n"
+	usage += "\tpreflight get-general-settings EMAIL\n"
+	usage += "\tpreflight set-general-setting EMAIL SETTING VALUE\n"
 
 	logger := log.New(os.Stderr, "", log.Ldate | log.Ltime)
 	if len(os.Args) < 2 {
@@ -258,6 +260,57 @@ func main() {
 		err = commands.SetTrelloToken(id, token, persister)
 		if err != nil {
 			logger.Println("main: error setting trello token: " +
+				"\n\t" + err.Error())
+			return
+		}
+	} else if os.Args[1] == "get-general-settings" {
+		if len(os.Args) != 3 {
+			logger.Println(usage)
+			return
+		}
+		email := os.Args[2]
+		persister, err := persistence.New("localhost", "users")
+		if err != nil {
+			logger.Println("main: error getting persister: " +
+				"\n\t" + err.Error())
+			return
+		}
+		id, err := commands.GetUserIdFromEmail(email, persister)
+		if err != nil {
+			logger.Println("main: error getting user id: " +
+				"\n\t" + err.Error())
+			return
+		}
+		settings, err := commands.GetGeneralSettings(id, persister)
+		if err != nil {
+			logger.Println("main: error getting settings: " +
+				"\n\t" + err.Error())
+			return
+		}
+		fmt.Println(settings)
+	} else if os.Args[1] == "set-general-setting" {
+		if len(os.Args) != 5 {
+			logger.Println(usage)
+			return
+		}
+		email := os.Args[2]
+		setting := os.Args[3]
+		value := os.Args[4]
+		persister, err := persistence.New("localhost", "users")
+		if err != nil {
+			logger.Println("main: error getting persister: " +
+				"\n\t" + err.Error())
+			return
+		}
+		id, err := commands.GetUserIdFromEmail(email, persister)
+		if err != nil {
+			logger.Println("main: error getting user id: " +
+				"\n\t" + err.Error())
+			return
+		}
+		err = commands.SetGeneralSetting(id, setting, value, persister)
+		if err != nil {
+			logger.Println("main: error setting \"" + setting + "\": " +
 				"\n\t" + err.Error())
 			return
 		}
