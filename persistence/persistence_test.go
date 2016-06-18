@@ -2,11 +2,15 @@ package persistence
 
 import (
 	"testing"
+	"fmt"
 	"github.com/jsutton9/preflight/security"
+	"math/rand"
+	"time"
 )
 
 func TestGetUser(t *testing.T) {
-	email := "foo@bar"
+	rand.Seed(time.Now().UnixNano())
+	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 	password := "password"
 
 	p, err := New("localhost", "preflight-test")
@@ -30,7 +34,8 @@ func TestGetUser(t *testing.T) {
 }
 
 func TestGetUserByEmail(t *testing.T) {
-	email := "foo@baz"
+	rand.Seed(time.Now().UnixNano())
+	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 	password := "password"
 
 	p, err := New("localhost", "preflight-test")
@@ -53,7 +58,8 @@ func TestGetUserByEmail(t *testing.T) {
 }
 
 func TestGetUserByToken(t *testing.T) {
-	email := "foo@abc"
+	rand.Seed(time.Now().UnixNano())
+	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 	password := "password"
 
 	p, err := New("localhost", "preflight-test")
@@ -87,8 +93,9 @@ func TestGetUserByToken(t *testing.T) {
 }
 
 func TestUpdateUser(t *testing.T) {
-	emailBefore := "abc@foo"
-	emailAfter := "def@bar"
+	rand.Seed(time.Now().UnixNano())
+	emailBefore := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
+	emailAfter := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 	password := "password"
 
 	p, err := New("localhost", "preflight-test")
@@ -111,6 +118,27 @@ func TestUpdateUser(t *testing.T) {
 
 	if user.Email != emailAfter {
 		t.Logf("email wrong: expected \"%s\", got \"%s\"", emailAfter, user.Email)
+		t.Fail()
+	}
+}
+
+func TestNoDuplicateEmails(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
+	password := "password"
+
+	p, err := New("localhost", "preflight-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.AddUser(email, password)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.AddUser(email, password)
+	if err == nil {
+		t.Log("test failure: expected error adding duplicate user, got nil")
 		t.Fail()
 	}
 }

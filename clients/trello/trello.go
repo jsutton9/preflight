@@ -12,6 +12,7 @@ type Client struct {
 	Url       string
 	Security  Security
 	BoardName string
+	Key       string
 }
 
 type board struct {
@@ -31,7 +32,6 @@ type list struct {
 }
 
 type Security struct {
-	Key string   `json:"key"`
 	Token string `json:"token"`
 }
 
@@ -41,7 +41,7 @@ type ListKey struct {
 }
 
 func (c Client) get(query string) ([]byte, error) {
-	request := c.Url + query + "&key=" + c.Security.Key + "&token=" + c.Security.Token
+	request := c.Url + query + "&key=" + c.Key + "&token=" + c.Security.Token
 	response, err := http.Get(request)
 	if err != nil {
 		return nil, errors.New("trello.Client.get: error getting " + request + ": " +
@@ -116,11 +116,12 @@ func (c Client) cardNames(boardId, listName string) ([]string, error) {
 	return nil, errors.New("trello.Client.cardNames: list named \"" + listName + "\" not found.")
 }
 
-func New(security Security, boardName string) Client {
+func New(security Security, key string, boardName string) Client {
 	return Client{
 		Url:       "https://api.trello.com/1/",
 		Security:  security,
 		BoardName: boardName,
+		Key:       key,
 	}
 }
 

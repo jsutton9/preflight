@@ -23,8 +23,8 @@ func TestGetList(t *testing.T) {
 	correctTasks := []string{"foo", "bar", "baz"}
 
 	t.Log("testing with constructor params")
-	c := New(Security{Key:key,Token:token}, boardName)
-	tasks, err := c.Tasks(ListKey{Board:"",Name:listName})
+	c := New(Security{Token:token}, key, boardName)
+	tasks, err := c.Tasks(&ListKey{Board:"",Name:listName})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,8 +43,8 @@ func TestGetList(t *testing.T) {
 	}
 
 	t.Log("testing with method params")
-	c = New(Security{Key:key,Token:token}, "wrong")
-	tasks, err = c.Tasks(ListKey{Board:boardName,Name:listName})
+	c = New(Security{Token:token}, key, "wrong")
+	tasks, err = c.Tasks(&ListKey{Board:boardName,Name:listName})
 	if err != nil {
 		t.Fatal(err)
 	}

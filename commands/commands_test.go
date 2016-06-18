@@ -12,7 +12,7 @@ import (
 )
 
 func TestUserCommands(t *testing.T) {
-	rand.Seed(time.Now().Unix())
+	rand.Seed(time.Now().UnixNano())
 	persister, err := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 
@@ -53,7 +53,7 @@ func TestUserCommands(t *testing.T) {
 
 func TestChecklistCommands(t *testing.T) {
 	// setup
-	rand.Seed(time.Now().Unix())
+	rand.Seed(time.Now().UnixNano())
 	persister, err := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 	name := "foo"
@@ -178,7 +178,7 @@ func TestChecklistCommands(t *testing.T) {
 }
 
 func testSettingsCommands(t *testing.T) {
-	rand.Seed(time.Now().Unix())
+	rand.Seed(time.Now().UnixNano())
 	persister, err := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 	id, err := AddUser(email, "password", persister)

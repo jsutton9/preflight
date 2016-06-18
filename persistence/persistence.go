@@ -47,7 +47,17 @@ func New(url, database string) (*Persister, error) {
 	return &p, nil
 }
 
+func (p Persister) Close() {
+	p.Session.Close()
+}
+
 func (p Persister) AddUser(email, password string) (*User, error) {
+	existing_user, _ := p.GetUserByEmail(email)
+	if existing_user != nil {
+		return nil, errors.New("persistence.Persister.AddUser: " +
+			"\n\t" + "user with email " + email + " already exists")
+	}
+
 	security, err := security.New(password)
 	if err != nil {
 		return nil, errors.New("persistence.Persister.AddUser: " +

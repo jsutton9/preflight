@@ -86,14 +86,50 @@ func AddToken(id string, permissions security.PermissionFlags, expiryHours int, 
 	return token, nil
 }
 
-func Update(id string, persister *persistence.Persister) error {
+func SetTodoistToken(id string, token string, persister *persistence.Persister) error {
+	user, err := persister.GetUser(id)
+	if err != nil {
+		return errors.New("commands.SetTodoistToken: error getting user: " +
+			"\n\t" + err.Error())
+	}
+
+	user.Security.Todoist.Token = token
+
+	err = persister.UpdateUser(user)
+	if err != nil {
+		return errors.New("commands.SetTodoistToken: error updating user in db: " +
+			"\n\t" + err.Error())
+	}
+
+	return nil
+}
+
+func SetTrelloToken(id string, token string, persister *persistence.Persister) error {
+	user, err := persister.GetUser(id)
+	if err != nil {
+		return errors.New("commands.SetTrelloToken: error getting user: " +
+			"\n\t" + err.Error())
+	}
+
+	user.Security.Trello.Token = token
+
+	err = persister.UpdateUser(user)
+	if err != nil {
+		return errors.New("commands.SetTrelloToken: error updating user in db: " +
+			"\n\t" + err.Error())
+	}
+
+	return nil
+}
+
+func Update(id string, trelloKey string, persister *persistence.Persister) error {
 	user, err := persister.GetUser(id)
 	if err != nil {
 		return errors.New("commands.Update: error getting user: \n\t" + err.Error())
 	}
 
 	td := todoist.New(user.Security.Todoist)
-	trelloClient := trello.New(user.Security.Trello, user.Settings.TrelloBoard)
+	trelloClient := trello.New(user.Security.Trello, trelloKey, user.Settings.TrelloBoard)
 
 	loc, err := time.LoadLocation(user.Settings.Timezone)
 	if err != nil {
@@ -103,13 +139,13 @@ func Update(id string, persister *persistence.Persister) error {
 
 	jobs := make(jobsByTime, 0)
 	for _, cl := range user.Checklists {
-		record := cl.Record
-		if record == nil {
+		if cl.Record == nil {
 			cl.Record = &checklist.UpdateRecord{Ids:make([]int,0)}
 		}
-		action, updateTime, err := cl.Action(record.AddTime, record.Time, now)
+		action, updateTime, err := cl.Action(cl.Record.AddTime, cl.Record.Time, now)
 		if err != nil {
-			return errors.New("commands.Update: error determining action: \n\t" + err.Error())
+			return errors.New("commands.Update: error determining action: " +
+				"\n\t" + err.Error())
 		}
 		if action != 0 {
 			jobs = append(jobs, updateJob{
@@ -149,7 +185,7 @@ func Update(id string, persister *persistence.Persister) error {
 	return nil
 }
 
-func Invoke(id string, name string, persister *persistence.Persister) error {
+func Invoke(id string, name string, trelloKey string, persister *persistence.Persister) error {
 	user, err := persister.GetUser(id)
 	if err != nil {
 		return errors.New("commands.Invoke: error getting user: \n\t" + err.Error())
@@ -160,7 +196,7 @@ func Invoke(id string, name string, persister *persistence.Persister) error {
 	}
 
 	todoistClient := todoist.New(user.Security.Todoist)
-	trelloClient := trello.New(user.Security.Trello, user.Settings.TrelloBoard)
+	trelloClient := trello.New(user.Security.Trello, trelloKey, user.Settings.TrelloBoard)
 	if cl.Record == nil {
 		cl.Record = &checklist.UpdateRecord{Ids:make([]int, 0)}
 	}
