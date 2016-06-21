@@ -15,8 +15,28 @@ func TestUserCommands(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	persister, err := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
+	tokenReq := tokenRequest{
+		Permissions: security.PermissionFlags{},
+		ExpiryHours: 24,
+		Description: "foo",
+	}
+	tokenReqBytes, err := json.Marshal(tokenReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokenReqString := string(tokenReqBytes[:])
 
 	id, err := AddUser(email, "password", persister)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tokenString, err := AddToken(id, tokenReqString, persister)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := new(security.Token)
+	err = json.Unmarshal([]byte(tokenString), token)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,21 +47,17 @@ func TestUserCommands(t *testing.T) {
 			"\n\t" + err.Error())
 		t.Fail()
 	}
-	if idEmail != id {
-		t.Logf("incorrect id from GetUserIdFromEmail: " +
-			"\n\t expected %s, got %s", id, idEmail)
-		t.Fail()
-	}
-
-	token, err := AddToken(id, security.PermissionFlags{}, 24, "foo", persister)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	idToken, err := GetUserIdFromToken(token.Secret, persister)
 	if err != nil {
 		t.Log("error getting user id from token: " +
 			"\n\t" + err.Error())
+		t.Fail()
+	}
+
+	if idEmail != id {
+		t.Logf("incorrect id from GetUserIdFromEmail: " +
+			"\n\t expected %s, got %s", id, idEmail)
 		t.Fail()
 	}
 	if idToken != id {
@@ -177,7 +193,90 @@ func TestChecklistCommands(t *testing.T) {
 	}
 }
 
-func testSettingsCommands(t *testing.T) {
+func TestTokenCommands(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+	persister, err := persistence.New("localhost", "commands-test")
+	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
+	id, err := AddUser(email, "password", persister)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokenReq := tokenRequest{
+		Permissions: security.PermissionFlags{},
+		ExpiryHours: 24,
+		Description: "foo",
+	}
+	tokenReqBytes, err := json.Marshal(tokenReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokenReqString := string(tokenReqBytes[:])
+
+	tokenString, err := AddToken(id, tokenReqString, persister)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := new(security.Token)
+	err = json.Unmarshal([]byte(tokenString), token)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tokensString1, err := GetTokens(id, persister)
+	if err != nil {
+		t.Log("error getting tokens: " +
+			"\n\t" + err.Error())
+		t.Fail()
+	}
+	err = DeleteToken(id, token.Id, persister)
+	if err != nil {
+		t.Log("error deleting token: " +
+			err.Error())
+		t.Fail()
+	}
+	tokensString2, err := GetTokens(id, persister)
+	if err != nil {
+		t.Log("error getting tokens: " +
+			"\n\t" + err.Error())
+		t.Fail()
+	}
+
+	tokens1 := []security.Token{}
+	err = json.Unmarshal([]byte(tokensString1), &tokens1)
+	if err != nil {
+		t.Log("error unmarshalling tokens \"" + tokensString1 + "\": " +
+			"\n\t" + err.Error())
+		t.Fail()
+	}
+	found := false
+	for _, tokenOut := range tokens1 {
+		if tokenOut.Id == token.Id {
+			found = true
+			break
+		}
+	}
+	if ! found {
+		t.Log("added token not found in list")
+		t.Fail()
+	}
+
+	tokens2 := []security.Token{}
+	err = json.Unmarshal([]byte(tokensString2), &tokens2)
+	if err != nil {
+		t.Log("error unmarshalling tokens \"" + tokensString2 + "\": " +
+			"\n\t" + err.Error())
+		t.Fail()
+	}
+	for _, tokenOut := range tokens2 {
+		if tokenOut.Id == token.Id {
+			t.Log("deleted token found in list")
+			t.Fail()
+			break
+		}
+	}
+}
+
+func TestSettingsCommands(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	persister, err := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())

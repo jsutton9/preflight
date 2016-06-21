@@ -35,6 +35,12 @@ type checklistRequest struct {
 	Checklist checklist.Checklist `json:"checklist"`
 }
 
+type tokenRequest struct {
+	Permissions security.PermissionFlags `json:"permissions"`
+	ExpiryHours int                      `json:"expiryHours"`
+	Description string                   `json:"description"`
+}
+
 func AddUser(email string, password string, persister *persistence.Persister) (string, error) {
 	user, err := persister.AddUser(email, password)
 	if err != nil {
@@ -64,26 +70,88 @@ func GetUserIdFromToken(secret string, persister *persistence.Persister) (string
 	return user.GetId(), nil
 }
 
-func AddToken(id string, permissions security.PermissionFlags, expiryHours int, description string, persister *persistence.Persister) (*security.Token, error) {
-	user, err := persister.GetUser(id)
+func AddToken(id, tokenReqString string, persister *persistence.Persister) (string, error) {
+	request := tokenRequest{}
+	err := json.Unmarshal([]byte(tokenReqString), &request)
 	if err != nil {
-		return nil, errors.New("commands.AddToken: error getting user: " +
+		return "", errors.New("commands.AddToken: error unmarshalling request: " +
 			"\n\t" + err.Error())
 	}
 
-	token, err := user.Security.AddToken(permissions, expiryHours, description)
+	user, err := persister.GetUser(id)
 	if err != nil {
-		return nil, errors.New("commands.AddToken: error adding token: " +
+		return "", errors.New("commands.AddToken: error getting user: \n\t" + err.Error())
+	}
+
+	token, err := user.Security.AddToken(request.Permissions, request.ExpiryHours, request.Description)
+	if err != nil {
+		return "", errors.New("commands.AddToken: error adding token: " +
+			"\n\t" + err.Error())
+	}
+
+	tokenBytes, err := json.Marshal(token)
+	if err != nil {
+		return "", errors.New("commands.AddToken: error marshalling token: " +
 			"\n\t" + err.Error())
 	}
 
 	err = persister.UpdateUser(user)
 	if err != nil {
-		return nil, errors.New("commands.AddToken: error updating user in db: " +
+		return "", errors.New("commands.AddToken: error updating user in db: " +
 			"\n\t" + err.Error())
 	}
 
-	return token, nil
+	return string(tokenBytes[:]), nil
+}
+
+func DeleteToken(id, tokenId string, persister *persistence.Persister) error {
+	user, err := persister.GetUser(id)
+	if err != nil {
+		return errors.New("commands.DeleteToken: error getting user: " +
+			"\n\t" + err.Error())
+	}
+
+	tokens := user.Security.Tokens
+	found := false
+	for i, token := range tokens {
+		if token.Id == tokenId {
+			found = true
+			tokens[i] = tokens[len(tokens)-1]
+			user.Security.Tokens = tokens[:len(tokens)-1]
+			break
+		}
+	}
+
+	if ! found {
+		return errors.New("commands.DeleteToken: token id \"" + tokenId + "\" not found")
+	}
+
+	err = persister.UpdateUser(user)
+	if err != nil {
+		return errors.New("commands.DeleteToken: error updating user in db: " +
+			"\n\t" + err.Error())
+	}
+
+	return nil
+}
+
+func GetTokens(id string, persister *persistence.Persister) (string, error) {
+	user, err := persister.GetUser(id)
+	if err != nil {
+		return "", errors.New("commands.GetTokens: error getting user: " +
+			"\n\t" + err.Error())
+	}
+
+	for i, _ := range user.Security.Tokens {
+		user.Security.Tokens[i].Secret = ""
+	}
+	tokensBytes, err := json.Marshal(user.Security.Tokens)
+	if err != nil {
+		return "", errors.New("commands.GetTokens: error marshalling tokens: " +
+			"\n\t" + err.Error())
+	}
+
+	return string(tokensBytes), nil
 }
 
 func SetTodoistToken(id string, token string, persister *persistence.Persister) error {

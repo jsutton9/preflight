@@ -25,7 +25,7 @@ type SecurityInfo struct {
 
 type Token struct {
 	Id string                   `json:"id"`
-	Secret string               `json:"secret"`
+	Secret string               `json:"secret,omitempty"`
 	Permissions PermissionFlags `json:"permissions"`
 	Expiry time.Time            `json:"expiry"`
 	Description string          `json:"description"`
