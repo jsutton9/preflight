@@ -189,7 +189,7 @@ func main() {
 			return
 		}
 	} else if os.Args[1] == "delete-checklist" {
-		if len(os.Args) != 5 {
+		if len(os.Args) != 4 {
 			logger.Println(usage)
 			return
 		}

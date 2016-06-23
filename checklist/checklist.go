@@ -57,7 +57,7 @@ func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 
 	var scheduledToday bool
 	lastScheduledDelta := 7
-	if s.Days != nil {
+	if s.Days != nil && len(s.Days) > 0 {
 		scheduledToday = false
 		currentWeekday := now.Weekday()
 		for _, weekdayString := range s.Days {

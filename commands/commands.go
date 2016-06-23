@@ -334,10 +334,12 @@ func UpdateChecklist(id, name, checklistString string, persister *persistence.Pe
 		return errors.New("commands.UpdateChecklist: error getting user: " +
 			"\n\t" + err.Error())
 	}
-	_, found := user.Checklists[name]
+	clOld, found := user.Checklists[name]
 	if ! found {
 		return errors.New("command.UpdateChecklist: checklist \""+name+"\" not found")
 	}
+
+	cl.Record = clOld.Record
 
 	user.Checklists[name] = &cl
 	err = persister.UpdateUser(user)
