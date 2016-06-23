@@ -13,7 +13,7 @@ import (
 )
 
 type updateJob struct {
-	Checklist checklist.Checklist
+	Checklist *checklist.Checklist
 	Action int
 	Time time.Time
 }
@@ -226,8 +226,11 @@ func Update(id string, trelloKey string, persister *persistence.Persister) error
 
 	sort.Stable(jobs)
 	for _, job := range jobs {
+		if job.Checklist.Record == nil {
+			job.Checklist.Record = new(checklist.UpdateRecord)
+		}
 		if job.Action > 0 {
-			job.Checklist.Record.Ids, err = postTasks(td, trelloClient, job.Checklist)
+			job.Checklist.Record.Ids, err = postTasks(td, trelloClient, *job.Checklist)
 			if err != nil {
 				return errors.New("commands.Update: error posting tasks: \n\t" + err.Error())
 			}
@@ -276,7 +279,7 @@ func Invoke(id string, name string, trelloKey string, persister *persistence.Per
 	}
 	now := time.Now().In(loc)
 
-	cl.Record.Ids, err = postTasks(todoistClient, trelloClient, cl)
+	cl.Record.Ids, err = postTasks(todoistClient, trelloClient, *cl)
 	if err != nil {
 		return errors.New("commands.Invoke: error posting tasks: \n\t" + err.Error())
 	}
@@ -308,7 +311,7 @@ func AddChecklist(id, checklistReqString string, persister *persistence.Persiste
 				request.Name + "\" already exists")
 	}
 
-	user.Checklists[request.Name] = request.Checklist
+	user.Checklists[request.Name] = &request.Checklist
 	err = persister.UpdateUser(user)
 	if err != nil {
 		return errors.New("commands.AddChecklist: error updating user in db: " +
@@ -336,7 +339,7 @@ func UpdateChecklist(id, name, checklistString string, persister *persistence.Pe
 		return errors.New("command.UpdateChecklist: checklist \""+name+"\" not found")
 	}
 
-	user.Checklists[name] = cl
+	user.Checklists[name] = &cl
 	err = persister.UpdateUser(user)
 	if err != nil {
 		return errors.New("commands.UpdateChecklist: error updating user in db: " +

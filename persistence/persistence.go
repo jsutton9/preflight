@@ -13,7 +13,7 @@ type User struct {
 	Email string                              `json:"email"`
 	Settings GeneralSettings                  `json:"generalSettings"`
 	Security *security.SecurityInfo           `json:"security"`
-	Checklists map[string]checklist.Checklist `json:"checklists"`
+	Checklists map[string]*checklist.Checklist `json:"checklists"`
 }
 
 type GeneralSettings struct {
@@ -68,7 +68,7 @@ func (p Persister) AddUser(email, password string) (*User, error) {
 		Email: email,
 		Settings: GeneralSettings{},
 		Security: security,
-		Checklists: make(map[string]checklist.Checklist),
+		Checklists: make(map[string]*checklist.Checklist),
 	}
 	err = p.UserCollection.Insert(&user)
 	if err != nil {
