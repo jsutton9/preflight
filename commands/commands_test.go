@@ -15,6 +15,8 @@ func TestUserCommands(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	persister, err := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
+	oldPassword := "old-pass"
+	newPassword := "new-pass"
 	tokenReq := tokenRequest{
 		Permissions: security.PermissionFlags{},
 		ExpiryHours: 24,
@@ -26,7 +28,7 @@ func TestUserCommands(t *testing.T) {
 	}
 	tokenReqString := string(tokenReqBytes[:])
 
-	id, err := AddUser(email, "password", persister)
+	id, err := AddUser(email, oldPassword, persister)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,6 +57,31 @@ func TestUserCommands(t *testing.T) {
 		t.Fail()
 	}
 
+	passwordValidBefore, err := ValidatePassword(id, oldPassword, persister)
+	if err != nil {
+		t.Log("error validating password: " +
+			"\n\t" + err.Error())
+		t.Fail()
+	}
+	err = ChangePassword(id, newPassword, persister)
+	if err != nil {
+		t.Log("error changing password: " +
+			"\n\t" + err.Error())
+		t.Fail()
+	}
+	oldPasswordValidAfter, err := ValidatePassword(id, oldPassword, persister)
+	if err != nil {
+		t.Log("error validating password: " +
+			"\n\t" + err.Error())
+		t.Fail()
+	}
+	newPasswordValidAfter, err := ValidatePassword(id, newPassword, persister)
+	if err != nil {
+		t.Log("error validating password: " +
+			"\n\t" + err.Error())
+		t.Fail()
+	}
+
 	if idEmail != id {
 		t.Logf("incorrect id from GetUserIdFromEmail: " +
 			"\n\t expected %s, got %s", id, idEmail)
@@ -63,6 +90,21 @@ func TestUserCommands(t *testing.T) {
 	if idToken != id {
 		t.Logf("incorrect id from GetUserIdFromToken: " +
 			"\n\t expected %s, got %s", id, idToken)
+		t.Fail()
+	}
+	if ! passwordValidBefore {
+		t.Log("password validation before change incorrect: " +
+			"\n\t expected true, got false")
+		t.Fail()
+	}
+	if oldPasswordValidAfter {
+		t.Log("old password validation after change incorrect: " +
+			"\n\t expected false, got true")
+		t.Fail()
+	}
+	if ! newPasswordValidAfter {
+		t.Log("new password validation after change incorrect: " +
+			"\n\t expected true, got false")
 		t.Fail()
 	}
 }

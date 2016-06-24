@@ -70,6 +70,38 @@ func GetUserIdFromToken(secret string, persister *persistence.Persister) (string
 	return user.GetId(), nil
 }
 
+func ChangePassword(id string, newPassword string, persister *persistence.Persister) error {
+	user, err := persister.GetUser(id)
+	if err != nil {
+		return errors.New("commands.ChangePassword: error getting user: " +
+			"\n\t" + err.Error())
+	}
+
+	err = user.Security.SetPassword(newPassword)
+	if err != nil {
+		return errors.New("commands.ChangePassword: error setting password: " +
+			"\n\t" + err.Error())
+	}
+
+	err = persister.UpdateUser(user)
+	if err != nil {
+		return errors.New("commands.ChangePassword: error updating user in db: " +
+			"\n\t" + err.Error())
+	}
+
+	return nil
+}
+
+func ValidatePassword(id string, password string, persister *persistence.Persister) (bool, error) {
+	user, err := persister.GetUser(id)
+	if err != nil {
+		return false, errors.New("commands.ChangePassword: error getting user: " +
+			"\n\t" + err.Error())
+	}
+
+	return user.Security.ValidatePassword(password), nil
+}
+
 func AddToken(id, tokenReqString string, persister *persistence.Persister) (string, error) {
 	request := tokenRequest{}
 	err := json.Unmarshal([]byte(tokenReqString), &request)
