@@ -137,3 +137,14 @@ func (s *SecurityInfo) DeleteToken(id string) error {
 
 	return errors.New("security.DeleteToken: token \""+id+"\" not found")
 }
+
+func GenerateNodeSecret() (string, error) {
+	secretMax := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(SECRET_BITS), nil)
+	intSecret, err := rand.Int(rand.Reader, secretMax)
+	if err != nil {
+		return "", errors.New("security.GenerateNodeSecret: error generating secret: " +
+			"\n\t" + err.Error())
+	}
+	secretPattern := fmt.Sprintf("%%0%dx", SECRET_BITS/4)
+	return fmt.Sprintf(secretPattern, intSecret), nil
+}

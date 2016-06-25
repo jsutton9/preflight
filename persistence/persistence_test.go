@@ -142,3 +142,47 @@ func TestNoDuplicateEmails(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestNode(t *testing.T) {
+	wrongSecret := "wrong"
+	p, err := New("localhost", "preflight-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = p.InitializeNode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret, err := p.GetNodeSecret()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	secretValid, err := p.ValidateNodeSecret(secret)
+	if err != nil {
+		t.Log("error validating secret: " +
+			"\n\t" + err.Error())
+		t.Fail()
+	}
+	wrongSecretValid, err := p.ValidateNodeSecret(wrongSecret)
+	if err != nil {
+		t.Log("error validating secret: " +
+			"\n\t" + err.Error())
+		t.Fail()
+	}
+
+	if len(secret) != security.SECRET_BITS/4 {
+		t.Log("secret has wrong length: expected length %d, got %s",
+			security.SECRET_BITS/4, secret)
+		t.Fail()
+	}
+	if ! secretValid {
+		t.Log("secret incorrectly validated: expected true, got false")
+		t.Fail()
+	}
+	if wrongSecretValid {
+		t.Log("secret incorrectly validated: expected false, got true")
+		t.Fail()
+	}
+}
