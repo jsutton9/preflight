@@ -39,8 +39,8 @@ func main() {
 		}
 		email := os.Args[2]
 		password := os.Args[3]
-		// TODO: golang.org/x/crypto/ssh/terminal ReadPassword
-		id, err := commands.AddUser(email, password, persister)
+		userReq := fmt.Sprintf("{\"email\":\"%s\",\"password\":\"%s\"}", email, password)
+		id, err := commands.AddUser(userReq, persister)
 		if err != nil {
 			logger.Println("main: error adding user: " +
 				"\n\t" + err.Error())

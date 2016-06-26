@@ -41,11 +41,23 @@ type tokenRequest struct {
 	Description string                   `json:"description"`
 }
 
-func AddUser(email string, password string, persister *persistence.Persister) (string, error) {
-	user, err := persister.AddUser(email, password)
+type userRequest struct {
+	Email string    `json:"email"`
+	Password string `json:"password"`
+}
+
+func AddUser(userReqString string, persister *persistence.Persister) (string, error) {
+	request := userRequest{}
+	err := json.Unmarshal([]byte(userReqString), &request)
+	if err != nil {
+		return "", errors.New("commands.AddUser: error parsing userReqString: " +
+			"\n\t" + err.Error())
+	}
+
+	user, err := persister.AddUser(request.Email, request.Password)
 	if err != nil {
 		return "", errors.New("commands.AddUser: error adding user \"" +
-			email + "\":\n\t" + err.Error())
+			request.Email + "\":\n\t" + err.Error())
 	}
 	return user.GetId(), nil
 }

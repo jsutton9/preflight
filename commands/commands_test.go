@@ -27,8 +27,17 @@ func TestUserCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	tokenReqString := string(tokenReqBytes[:])
+	userReq := userRequest{
+		Email: email,
+		Password: oldPassword,
+	}
+	userReqBytes, err := json.Marshal(userReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	userReqString := string(userReqBytes[:])
 
-	id, err := AddUser(email, oldPassword, persister)
+	id, err := AddUser(userReqString, persister)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +124,16 @@ func TestChecklistCommands(t *testing.T) {
 	persister, err := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 	name := "foo"
-	id, err := AddUser(email, "password", persister)
+	userReq := userRequest{
+		Email: email,
+		Password: "password",
+	}
+	userReqBytes, err := json.Marshal(userReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	userReqString := string(userReqBytes[:])
+	id, err := AddUser(userReqString, persister)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +257,16 @@ func TestTokenCommands(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	persister, err := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
-	id, err := AddUser(email, "password", persister)
+	userReq := userRequest{
+		Email: email,
+		Password: "password",
+	}
+	userReqBytes, err := json.Marshal(userReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	userReqString := string(userReqBytes[:])
+	id, err := AddUser(userReqString, persister)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -322,7 +349,16 @@ func TestSettingsCommands(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	persister, err := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
-	id, err := AddUser(email, "password", persister)
+	userReq := userRequest{
+		Email: email,
+		Password: "password",
+	}
+	userReqBytes, err := json.Marshal(userReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	userReqString := string(userReqBytes[:])
+	id, err := AddUser(userReqString, persister)
 	if err != nil {
 		t.Fatal(err)
 	}
