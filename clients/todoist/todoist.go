@@ -96,7 +96,8 @@ func (c Client) PostTask(task string) (int, error) {
 	responseContent := new(AddResponse)
 	err = json.Unmarshal(body[:bodyLen], responseContent)
 	if err != nil {
-		return 0, errors.New("todoist.Client.PostTask: error parsing response: \n\t"+err.Error())
+		return 0, errors.New("todoist.Client.PostTask: error parsing response: \"" +
+			string(body[:bodyLen]) + "\":\n\t" + err.Error())
 	}
 
 	if (response.StatusCode != 200) || (responseContent.SyncStatus[uuid] != "ok") {
@@ -140,7 +141,8 @@ func (c Client) DeleteTask(id int) error {
 	responseContent := new(DeleteResponse)
 	err = json.Unmarshal(body[:bodyLen], responseContent)
 	if err != nil {
-		return errors.New("todoist.Client.DeleteTask: error parsing response: \n\t"+err.Error())
+		return errors.New("todoist.Client.DeleteTask: error parsing response: \"" +
+			string(body[:bodyLen]) + "\":\n\t" + err.Error())
 	}
 
 	syncStatus := responseContent.SyncStatus[uuid]
