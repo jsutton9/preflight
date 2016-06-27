@@ -116,12 +116,10 @@ func (c Client) PostTask(task string) (int, error) {
 
 func (c Client) DeleteTask(id int) error {
 	uuid := strconv.FormatInt(rand.Int63(), 16)
-	tempId := strconv.FormatInt(rand.Int63(), 16)
 	ids := []int{id}
 	cmd := command{
 		Type: "item_delete",
 		Uuid: uuid,
-		TempId: tempId,
 		Args: &taskArgs{Ids: ids},
 	}
 
