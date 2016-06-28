@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"os/exec"
 	"time"
 )
 
@@ -70,7 +71,12 @@ func (c Client) PostTask(task string) (int, error) {
 	task = url.QueryEscape(task)
 
 	uuid := strconv.FormatInt(rand.Int63(), 16)
-	tempId := strconv.FormatInt(rand.Int63(), 16)
+	tempIdBytes, err := exec.Command("uuidgen").Output()
+	if err != nil {
+		return 0, errors.New("todoist.Client.PostTask: error generating uuid: " +
+			"\n\t" + err.Error())
+	}
+	tempId := string(tempIdBytes[:len(tempIdBytes)-1])
 	cmd := command{
 		Type: "item_add",
 		Uuid: uuid,
@@ -89,7 +95,8 @@ func (c Client) PostTask(task string) (int, error) {
 	body := make([]byte, 10000)
 	bodyLen, err := response.Body.Read(body)
 	if err != nil {
-		return 0, errors.New("todoist.Client.PostTask: error reading response: \n\t"+err.Error())
+		return 0, errors.New("todoist.Client.PostTask: error parsing response: \"" +
+			string(body[:bodyLen]) + "\":\n\t" + err.Error())
 	}
 	response.Body.Close()
 
@@ -114,11 +121,21 @@ func (c Client) PostTask(task string) (int, error) {
 }
 
 func (c Client) DeleteTask(id int) error {
+	if id == 0 {
+		return nil
+	}
 	uuid := strconv.FormatInt(rand.Int63(), 16)
+	tempIdBytes, err := exec.Command("uuidgen").Output()
+	if err != nil {
+		return errors.New("todoist.Client.PostTask: error generating uuid: " +
+			"\n\t" + err.Error())
+	}
+	tempId := string(tempIdBytes[:len(tempIdBytes)-1])
 	ids := []int{id}
 	cmd := command{
 		Type: "item_delete",
 		Uuid: uuid,
+		TempId: tempId,
 		Args: &taskArgs{Ids: ids},
 	}
 
@@ -140,7 +157,8 @@ func (c Client) DeleteTask(id int) error {
 	responseContent := new(DeleteResponse)
 	err = json.Unmarshal(body[:bodyLen], responseContent)
 	if err != nil {
-		return errors.New("todoist.Client.DeleteTask: error parsing response: \n\t"+err.Error())
+		return errors.New("todoist.Client.DeleteTask: error parsing response: \"" +
+			string(body[:bodyLen]) + "\":\n\t" + err.Error())
 	}
 
 	syncStatus := responseContent.SyncStatus[uuid]
