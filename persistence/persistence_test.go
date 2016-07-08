@@ -62,13 +62,13 @@ func TestGetUserByToken(t *testing.T) {
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 	password := "password"
 
-	p, err := New("localhost", "preflight-test")
-	if err != nil {
-		t.Fatal(err)
+	p, pErr := New("localhost", "preflight-test")
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
-	user, err := p.AddUser(email, password)
-	if err != nil {
-		t.Fatal(err)
+	user, pErr := p.AddUser(email, password)
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
 
 	permissions := security.PermissionFlags{ChecklistRead:true}
@@ -76,14 +76,14 @@ func TestGetUserByToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = p.UpdateUser(user)
-	if err != nil {
-		t.Fatal(err)
+	pErr = p.UpdateUser(user)
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
 
-	user, err = p.GetUserByToken(token.Secret)
-	if err != nil {
-		t.Fatal(err)
+	user, pErr = p.GetUserByToken(token.Secret)
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
 
 	if user.Email != email {

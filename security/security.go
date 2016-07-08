@@ -2,8 +2,8 @@ package security
 
 import (
 	"crypto/rand"
-	"errors"
 	"fmt"
+	"github.com/jsutton9/preflight/api/errors"
 	"github.com/jsutton9/preflight/clients/todoist"
 	"github.com/jsutton9/preflight/clients/trello"
 	"golang.org/x/crypto/bcrypt"
@@ -39,12 +39,11 @@ type PermissionFlags struct {
 	GeneralWrite bool    `json:"generalWrite"`
 }
 
-func New(password string) (*SecurityInfo, error) {
+func New(password string) (*SecurityInfo, *errors.PreflightError) {
 	sec := SecurityInfo{}
 	err := sec.SetPassword(password)
 	if err != nil {
-		return nil, errors.New("security.New: error setting password: " +
-			"\n\t" + err.Error())
+		return nil, err.Prepend("security.New: error setting password: ")
 	}
 	return &sec, nil
 }
@@ -57,11 +56,15 @@ func (s *SecurityInfo) ValidatePassword(password string) bool {
 	return false
 }
 
-func (s *SecurityInfo) SetPassword(newPassword string) error {
+func (s *SecurityInfo) SetPassword(newPassword string) *errors.PreflightError {
 	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return errors.New("security.SetPassword: error hashing password: " +
-			"\n\t" + err.Error())
+		return &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "security.SetPassword: error hashing password: " +
+				"\n\t" + err.Error(),
+			ExternalMessage: "There was an error setting the password.",
+		}
 	}
 	s.PasswordHash = hash
 
@@ -89,7 +92,7 @@ func (s *SecurityInfo) ValidateToken(secret string, permissions PermissionFlags)
 	return false
 }
 
-func (s *SecurityInfo) AddToken(permissions PermissionFlags, expiryHours int, description string) (*Token, error) {
+func (s *SecurityInfo) AddToken(permissions PermissionFlags, expiryHours int, description string) (*Token, *errors.PreflightError) {
 	now := time.Now()
 	dur := time.Duration(expiryHours)*time.Hour
 	expiry := now.Add(dur)
@@ -97,8 +100,12 @@ func (s *SecurityInfo) AddToken(permissions PermissionFlags, expiryHours int, de
 	idMax := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(ID_BITS), nil)
 	intId, err := rand.Int(rand.Reader, idMax)
 	if err != nil {
-		return nil, errors.New("security.AddToken: error generating id: " +
-			"\n\t" + err.Error())
+		return nil, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "security.AddToken: error generating id: " +
+				"\n\t" + err.Error(),
+			ExternalMessage: "There was an error creating the token.",
+		}
 	}
 	idPattern := fmt.Sprintf("%%0%dx", ID_BITS/4)
 	id := fmt.Sprintf(idPattern, intId)
@@ -106,8 +113,12 @@ func (s *SecurityInfo) AddToken(permissions PermissionFlags, expiryHours int, de
 	secretMax := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(SECRET_BITS), nil)
 	intSecret, err := rand.Int(rand.Reader, secretMax)
 	if err != nil {
-		return nil, errors.New("security.AddToken: error generating secret: " +
-			"\n\t" + err.Error())
+		return nil, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "security.AddToken: error generating secret: " +
+				"\n\t" + err.Error(),
+			ExternalMessage: "There was an error creating the token.",
+		}
 	}
 	secretPattern := fmt.Sprintf("%%0%dx", SECRET_BITS/4)
 	secret := fmt.Sprintf(secretPattern, intSecret)
@@ -125,7 +136,7 @@ func (s *SecurityInfo) AddToken(permissions PermissionFlags, expiryHours int, de
 	return &token, nil
 }
 
-func (s *SecurityInfo) DeleteToken(id string) error {
+func (s *SecurityInfo) DeleteToken(id string) *errors.PreflightError {
 	for i, token := range s.Tokens {
 		if token.Id == id {
 			l := len(s.Tokens)
@@ -135,15 +146,23 @@ func (s *SecurityInfo) DeleteToken(id string) error {
 		}
 	}
 
-	return errors.New("security.DeleteToken: token \""+id+"\" not found")
+	return &errors.PreflightError{
+		Status: 404,
+		InternalMessage: "security.DeleteToken: token \""+id+"\" not found",
+		ExternalMessage: "Token not found",
+	}
 }
 
-func GenerateNodeSecret() (string, error) {
+func GenerateNodeSecret() (string, *errors.PreflightError) {
 	secretMax := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(SECRET_BITS), nil)
 	intSecret, err := rand.Int(rand.Reader, secretMax)
 	if err != nil {
-		return "", errors.New("security.GenerateNodeSecret: error generating secret: " +
-			"\n\t" + err.Error())
+		return "", &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "security.GenerateNodeSecret: error generating secret: " +
+				"\n\t" + err.Error(),
+			ExternalMessage: "There was an error initializing the node.",
+		}
 	}
 	secretPattern := fmt.Sprintf("%%0%dx", SECRET_BITS/4)
 	return fmt.Sprintf(secretPattern, intSecret), nil

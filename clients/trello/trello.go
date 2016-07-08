@@ -2,8 +2,8 @@ package trello
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/jsutton9/preflight/api/errors"
 	"io/ioutil"
 	"net/http"
 )
@@ -40,44 +40,61 @@ type ListKey struct {
 	Name string  `json:"name"`
 }
 
-func (c Client) get(query string) ([]byte, error) {
+func (c Client) get(query string) ([]byte, *errors.PreflightError) {
 	request := c.Url + query + "&key=" + c.Key + "&token=" + c.Security.Token
 	response, err := http.Get(request)
 	if err != nil {
-		return nil, errors.New("trello.Client.get: error getting " + request + ": " +
-			"\n\t" + err.Error())
+		return nil, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "trello.Client.get: error getting " +
+				request + ": \n\t" + err.Error(),
+			ExternalMessage: "There was an error querying Trello.",
+		}
 	}
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return nil, errors.New("trello.Client.get: error reading response: " +
-			"\n\t" + err.Error())
+		return nil, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "trello.Client.get: error reading response: " +
+				"\n\t" + err.Error(),
+			ExternalMessage: "There was an error querying Trello.",
+		}
 	}
 	response.Body.Close()
 
 	if response.StatusCode != 200 {
-		return nil, errors.New(fmt.Sprintf(
-			"trello.Client.get: bad API response for \"%s\":\n"+
-				"\t\tStatus: %s\n"+
-				"\t\tBody: %s\n",
-			request, response.Status, string(body)))
+		return nil, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: fmt.Sprintf(
+				"trello.Client.get: bad API response getting %s: " +
+				"\n\t\tStatus: %s\n\t\tBody: %s",
+				request, response.Status, string(body)),
+			ExternalMessage: fmt.Sprintf(
+				"Trello returned an error response: " +
+				"\n\t\tStatus: %s\n\t\tBody: %s",
+				response.Status, string(body)),
+			}
 	}
 
 	return body, nil
 }
 
-func (c Client) boardId(boardName string) (string, error) {
-	body, err := c.get("members/me/boards?fields=name")
-	if err != nil {
-		return "", errors.New("trello.Client.boardId: error getting boards: " +
-			"\n\t" + err.Error())
+func (c Client) boardId(boardName string) (string, *errors.PreflightError) {
+	body, pErr := c.get("members/me/boards?fields=name")
+	if pErr != nil {
+		return "", pErr.Prepend("trello.Client.boardId: error getting boards: ")
 	}
 
 	boards := make([]board, 0)
-	err = json.Unmarshal(body, &boards)
+	err := json.Unmarshal(body, &boards)
 	if err != nil {
-		return "", errors.New("trello.Client.boardId: error parsing body: " +
-			"\n\t" + err.Error())
+		return "", &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "trello.Client.boardId: error parsing response " +
+				string(body) + "\n\t" + err.Error(),
+			ExternalMessage: "There was an error querying Todoist.",
+		}
 	}
 
 	for _, board := range boards {
@@ -86,21 +103,28 @@ func (c Client) boardId(boardName string) (string, error) {
 		}
 	}
 
-	return "", errors.New("trello.Client.boardId: Board named \"" + boardName + "\" not found.")
+	return "", &errors.PreflightError{
+		Status: 404,
+		InternalMessage: "trello.Client.boardId: Board named \"" + boardName + "\" not found.",
+		ExternalMessage: "Trello board \"" + boardName + "\" not found.",
+	}
 }
 
-func (c Client) cardNames(boardId, listName string) ([]string, error) {
-	body, err := c.get("boards/" + boardId + "/lists?fields=name&cards=all&card_fields=name")
-	if err != nil {
-		return nil, errors.New("trello.Client.cardNames: error getting lists: " +
-			"\n\t" + err.Error())
+func (c Client) cardNames(boardId, listName string) ([]string, *errors.PreflightError) {
+	body, pErr := c.get("boards/" + boardId + "/lists?fields=name&cards=all&card_fields=name")
+	if pErr != nil {
+		return nil, pErr.Prepend("trello.Client.cardNames: error getting lists: ")
 	}
 
 	lists := make([]list, 0)
-	err = json.Unmarshal(body, &lists)
+	err := json.Unmarshal(body, &lists)
 	if err != nil {
-		return nil, errors.New("trello.Client.cardNames: error parsing response: " +
-			"\n\t" + err.Error())
+		return nil, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "trello.Client.cardName: error parsing response " +
+				string(body) + "\n\t" + err.Error(),
+			ExternalMessage: "There was an error querying Todoist.",
+		}
 	}
 
 	for _, l := range lists {
@@ -113,7 +137,11 @@ func (c Client) cardNames(boardId, listName string) ([]string, error) {
 		}
 	}
 
-	return nil, errors.New("trello.Client.cardNames: list named \"" + listName + "\" not found.")
+	return nil, &errors.PreflightError{
+		Status: 404,
+		InternalMessage: "trello.Client.cardNames: List named \"" + listName + "\" not found.",
+		ExternalMessage: "Trello list \"" + listName + "\" not found.",
+	}
 }
 
 func New(security Security, key string, boardName string) Client {
@@ -125,20 +153,18 @@ func New(security Security, key string, boardName string) Client {
 	}
 }
 
-func (c Client) Tasks(listKey *ListKey) ([]string, error) {
+func (c Client) Tasks(listKey *ListKey) ([]string, *errors.PreflightError) {
 	if listKey.Board == "" {
 		listKey.Board = c.BoardName
 	}
 
 	boardId, err := c.boardId(listKey.Board)
 	if err != nil {
-		return nil, errors.New("trello.Client.Tasks: error getting board ID: " +
-			"\n\t" + err.Error())
+		return nil, err.Prepend("trello.Client.Tasks: error getting board ID: ")
 	}
 	tasks, err := c.cardNames(boardId, listKey.Name)
 	if err != nil {
-		return nil, errors.New("trello.Client.Tasks: error getting card names: " +
-			"\n\t" + err.Error())
+		return nil, err.Prepend("trello.Client.Tasks: error getting card names: ")
 	}
 	return tasks, nil
 }

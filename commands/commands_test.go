@@ -13,7 +13,7 @@ import (
 
 func TestUserCommands(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	persister, err := persistence.New("localhost", "commands-test")
+	persister, pErr := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 	oldPassword := "old-pass"
 	newPassword := "new-pass"
@@ -37,14 +37,14 @@ func TestUserCommands(t *testing.T) {
 	}
 	userReqString := string(userReqBytes[:])
 
-	id, err := AddUser(userReqString, persister)
-	if err != nil {
-		t.Fatal(err)
+	id, pErr := AddUser(userReqString, persister)
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
 
-	tokenString, err := AddToken(id, tokenReqString, persister)
-	if err != nil {
-		t.Fatal(err)
+	tokenString, pErr := AddToken(id, tokenReqString, persister)
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
 	token := new(security.Token)
 	err = json.Unmarshal([]byte(tokenString), token)
@@ -52,42 +52,42 @@ func TestUserCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	idEmail, err := GetUserIdFromEmail(email, persister)
-	if err != nil {
+	idEmail, pErr := GetUserIdFromEmail(email, persister)
+	if pErr != nil {
 		t.Log("error getting user id from email: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
 
-	idToken, err := GetUserIdFromToken(token.Secret, persister)
-	if err != nil {
+	idToken, pErr := GetUserIdFromToken(token.Secret, persister)
+	if pErr != nil {
 		t.Log("error getting user id from token: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
 
-	passwordValidBefore, err := ValidatePassword(id, oldPassword, persister)
-	if err != nil {
+	passwordValidBefore, pErr := ValidatePassword(id, oldPassword, persister)
+	if pErr != nil {
 		t.Log("error validating password: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
-	err = ChangePassword(id, newPassword, persister)
-	if err != nil {
+	pErr = ChangePassword(id, newPassword, persister)
+	if pErr != nil {
 		t.Log("error changing password: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
-	oldPasswordValidAfter, err := ValidatePassword(id, oldPassword, persister)
-	if err != nil {
+	oldPasswordValidAfter, pErr := ValidatePassword(id, oldPassword, persister)
+	if pErr != nil {
 		t.Log("error validating password: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
-	newPasswordValidAfter, err := ValidatePassword(id, newPassword, persister)
-	if err != nil {
+	newPasswordValidAfter, pErr := ValidatePassword(id, newPassword, persister)
+	if pErr != nil {
 		t.Log("error validating password: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
 
@@ -121,7 +121,7 @@ func TestUserCommands(t *testing.T) {
 func TestChecklistCommands(t *testing.T) {
 	// setup
 	rand.Seed(time.Now().UnixNano())
-	persister, err := persistence.New("localhost", "commands-test")
+	persister, pErr := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 	name := "foo"
 	userReq := userRequest{
@@ -133,9 +133,9 @@ func TestChecklistCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	userReqString := string(userReqBytes[:])
-	id, err := AddUser(userReqString, persister)
-	if err != nil {
-		t.Fatal(err)
+	id, pErr := AddUser(userReqString, persister)
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
 
 	// setup (checklist inputs)
@@ -167,45 +167,45 @@ func TestChecklistCommands(t *testing.T) {
 	checklistIn2String := string(checklistIn2Bytes[:])
 
 	// execute checklist commands
-	err = AddChecklist(id, checklistReqString, persister)
-	if err != nil {
-		t.Fatal(err)
+	pErr = AddChecklist(id, checklistReqString, persister)
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
-	checklistOut1String, err := GetChecklistString(id, name, persister)
-	if err != nil {
+	checklistOut1String, pErr := GetChecklistString(id, name, persister)
+	if pErr != nil {
 		t.Log("error getting checklist string: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
 
-	err = UpdateChecklist(id, name, checklistIn2String, persister)
-	if err != nil {
+	pErr = UpdateChecklist(id, name, checklistIn2String, persister)
+	if pErr != nil {
 		t.Log("error updating checklist: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
-	checklistOut2String, err := GetChecklistString(id, name, persister)
-	if err != nil {
+	checklistOut2String, pErr := GetChecklistString(id, name, persister)
+	if pErr != nil {
 		t.Log("error getting checklist string: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
 
-	checklistsOutString, err := GetChecklistsString(id, persister)
-	if err != nil {
+	checklistsOutString, pErr := GetChecklistsString(id, persister)
+	if pErr != nil {
 		t.Log("error getting checklists string: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
 
-	err = DeleteChecklist(id, name, persister)
-	if err != nil {
+	pErr = DeleteChecklist(id, name, persister)
+	if pErr != nil {
 		t.Log("error deleting checklist: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
-	_, err = GetChecklistString(id, name, persister)
-	if err == nil {
+	_, pErr = GetChecklistString(id, name, persister)
+	if pErr == nil {
 		t.Log("test failure: expected error from GetChecklistString after " +
 			"delete, got nil")
 		t.Fail()
@@ -255,7 +255,7 @@ func TestChecklistCommands(t *testing.T) {
 
 func TestTokenCommands(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	persister, err := persistence.New("localhost", "commands-test")
+	persister, pErr := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 	userReq := userRequest{
 		Email: email,
@@ -266,9 +266,9 @@ func TestTokenCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	userReqString := string(userReqBytes[:])
-	id, err := AddUser(userReqString, persister)
-	if err != nil {
-		t.Fatal(err)
+	id, pErr := AddUser(userReqString, persister)
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
 	tokenReq := tokenRequest{
 		Permissions: security.PermissionFlags{},
@@ -281,9 +281,9 @@ func TestTokenCommands(t *testing.T) {
 	}
 	tokenReqString := string(tokenReqBytes[:])
 
-	tokenString, err := AddToken(id, tokenReqString, persister)
-	if err != nil {
-		t.Fatal(err)
+	tokenString, pErr := AddToken(id, tokenReqString, persister)
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
 	token := new(security.Token)
 	err = json.Unmarshal([]byte(tokenString), token)
@@ -291,22 +291,22 @@ func TestTokenCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tokensString1, err := GetTokens(id, persister)
-	if err != nil {
+	tokensString1, pErr := GetTokens(id, persister)
+	if pErr != nil {
 		t.Log("error getting tokens: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
-	err = DeleteToken(id, token.Id, persister)
-	if err != nil {
+	pErr = DeleteToken(id, token.Id, persister)
+	if pErr != nil {
 		t.Log("error deleting token: " +
-			err.Error())
+			pErr.Error())
 		t.Fail()
 	}
-	tokensString2, err := GetTokens(id, persister)
-	if err != nil {
+	tokensString2, pErr := GetTokens(id, persister)
+	if pErr != nil {
 		t.Log("error getting tokens: " +
-			"\n\t" + err.Error())
+			"\n\t" + pErr.Error())
 		t.Fail()
 	}
 
@@ -347,7 +347,7 @@ func TestTokenCommands(t *testing.T) {
 
 func TestSettingsCommands(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	persister, err := persistence.New("localhost", "commands-test")
+	persister, pErr := persistence.New("localhost", "commands-test")
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
 	userReq := userRequest{
 		Email: email,
@@ -358,19 +358,19 @@ func TestSettingsCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	userReqString := string(userReqBytes[:])
-	id, err := AddUser(userReqString, persister)
-	if err != nil {
-		t.Fatal(err)
+	id, pErr := AddUser(userReqString, persister)
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
 	timezone := "Africa/Abidjan"
 
-	err = SetGeneralSetting(id, "timezone", timezone, persister)
-	if err != nil {
-		t.Fatal(err)
+	pErr = SetGeneralSetting(id, "timezone", timezone, persister)
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
-	settingsString, err := GetGeneralSettings(id, persister)
-	if err != nil {
-		t.Fatal(err)
+	settingsString, pErr := GetGeneralSettings(id, persister)
+	if pErr != nil {
+		t.Fatal(pErr)
 	}
 	settings := new(persistence.GeneralSettings)
 	err = json.Unmarshal([]byte(settingsString), settings)

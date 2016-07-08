@@ -1,7 +1,7 @@
 package persistence
 
 import (
-	"errors"
+	"github.com/jsutton9/preflight/api/errors"
 	"github.com/jsutton9/preflight/checklist"
 	"github.com/jsutton9/preflight/security"
 	"gopkg.in/mgo.v2"
@@ -37,11 +37,15 @@ func (u *User) GetId() string {
 	return u.Id.Hex()
 }
 
-func New(url, database string) (*Persister, error) {
+func New(url, database string) (*Persister, *errors.PreflightError) {
 	session, err := mgo.Dial(url)
 	if err != nil {
-		return nil, errors.New("persistence.New: " +
-			"error dialing \""+url+"\": \n\t" + err.Error())
+		return nil, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "persistence.New: " +
+				"error dialing \""+url+"\": \n\t" + err.Error(),
+			ExternalMessage: "There was an error connecting to the database.",
+		}
 	}
 
 	userCollection := session.DB(database).C("users")
@@ -60,75 +64,101 @@ func (p Persister) Close() {
 	p.Session.Close()
 }
 
-func (p Persister) InitializeNode() error {
-	secret, err := security.GenerateNodeSecret()
-	if err != nil {
-		return errors.New("persistence.Persister.InitializeNode: error generating secret: " +
-			"\n\t" + err.Error())
+func (p Persister) InitializeNode() *errors.PreflightError {
+	secret, pErr := security.GenerateNodeSecret()
+	if pErr != nil {
+		return pErr.Prepend("persistence.Persister.InitializeNode: error generating secret: ")
 	}
 
 	dir := os.Getenv("HOME")+"/preflight/"
-	err = ioutil.WriteFile(dir+"secret", []byte(secret), 0600)
+	err := ioutil.WriteFile(dir+"secret", []byte(secret), 0600)
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dir, 0700)
 			if err != nil {
-				return errors.New("persistence.Persister.InitializeNode: error making directory \"" +
-					dir + "\": \n\t" + err.Error())
+				return &errors.PreflightError{
+					Status: 500,
+					InternalMessage: "persistence.Persister.InitializeNode: " +
+						"error making directory \""+dir+"\": \n\t" + err.Error(),
+					ExternalMessage: "There was an error initializing the node.",
+				}
 			}
 			err = ioutil.WriteFile(dir+"secret", []byte(secret), 0600)
 			if err != nil {
-				return errors.New("persistence.Persister.InitializeNode: error writing secret file: " +
-					"\n\t" + err.Error())
+				return &errors.PreflightError{
+					Status: 500,
+					InternalMessage: "persistence.Persister.InitializeNode: " +
+						"error writing secret file: \n\t" + err.Error(),
+					ExternalMessage: "There was an error initializing the node.",
+				}
 			}
 		} else {
-			return errors.New("persistence.Persister.InitializeNode: error writing secret file: " +
-				"\n\t" + err.Error())
+			return &errors.PreflightError{
+				Status: 500,
+				InternalMessage: "persistence.Persister.InitializeNode: " +
+					"error writing secret file: \n\t" + err.Error(),
+				ExternalMessage: "There was an error initializing the node.",
+			}
 		}
 	}
 
 	node := Node{Secret:secret}
 	err = p.NodeCollection.Insert(&node)
 	if err != nil {
-		return errors.New("persistence.Persister.InitializeNode: error adding node to db: " +
-			"\n\t" + err.Error())
+		return &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "persistence.Persister.InitializeNode: " +
+				"error adding node to db: \n\t" + err.Error(),
+			ExternalMessage: "There was an error adding the node to the database.",
+		}
 	}
 
 	return nil
 }
 
-func (p Persister) GetNodeSecret() (string, error) {
+func (p Persister) GetNodeSecret() (string, *errors.PreflightError) {
 	dir := os.Getenv("HOME")+"/preflight/"
 	data, err := ioutil.ReadFile(dir+"secret")
 	if err != nil {
-		return "", errors.New("persistence.GetNodeSecret: error reading secret file: " +
-			"\n\t" + err.Error())
+		return "", &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "persistence.GetNodeSecret: error reading secret file: " +
+				"\n\t" + err.Error(),
+			ExternalMessage: "There was a server authentication error.",
+		}
 	}
 
 	return string(data[:]), nil
 }
 
-func (p Persister) ValidateNodeSecret(secret string) (bool, error) {
+func (p Persister) ValidateNodeSecret(secret string) (bool, *errors.PreflightError) {
 	n, err := p.NodeCollection.Find(bson.M{"secret": secret}).Count()
 	if err != nil {
-		return false, errors.New("persistence.Persister.ValidateNodeSecret: error querying db: " +
-			"\n\t" + err.Error())
+		return false, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "persistence.Persister.ValidateNodeSecret: error querying db: " +
+				"\n\t" + err.Error(),
+			ExternalMessage: "There was an error querying the database.",
+		}
 	}
 
 	return n>0, nil
 }
 
-func (p Persister) AddUser(email, password string) (*User, error) {
+func (p Persister) AddUser(email, password string) (*User, *errors.PreflightError) {
 	existing_user, _ := p.GetUserByEmail(email)
 	if existing_user != nil {
-		return nil, errors.New("persistence.Persister.AddUser: " +
-			"\n\t" + "user with email " + email + " already exists")
+		return nil, &errors.PreflightError{
+			Status: 409,
+			InternalMessage: "persistence.Persister.AddUser: " +
+				"\n\tuser with email " + email + " already exists",
+			ExternalMessage: "There is already a user with email " + email,
+		}
 	}
 
-	security, err := security.New(password)
-	if err != nil {
-		return nil, errors.New("persistence.Persister.AddUser: " +
-			"error creating security:\n\t" + err.Error())
+	security, pErr := security.New(password)
+	if pErr != nil {
+		return nil, pErr.Prepend("persistence.Persister.AddUser: error creating security: ")
 	}
 	user := User{
 		Id: bson.NewObjectId(),
@@ -137,53 +167,73 @@ func (p Persister) AddUser(email, password string) (*User, error) {
 		Security: security,
 		Checklists: make(map[string]*checklist.Checklist),
 	}
-	err = p.UserCollection.Insert(&user)
+	err := p.UserCollection.Insert(&user)
 	if err != nil {
-		return nil, errors.New("persistence.Persister.AddUser: " +
-			"error inserting user:\n\t" + err.Error())
+		return nil, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "persistence.Persister.AddUser: " +
+				"error inserting user:\n\t" + err.Error(),
+			ExternalMessage: "There was an error adding the user to the database.",
+		}
 	}
 
 	return &user, nil
 }
 
-func (p Persister) UpdateUser(user *User) error {
+func (p Persister) UpdateUser(user *User) *errors.PreflightError {
 	err := p.UserCollection.Update(bson.M{"_id": user.Id}, user)
 	if err != nil {
-		return errors.New("persistence.Persister.UpdateUser: " +
-			"error updating user:\n\t" + err.Error())
+		return &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "persistence.Persister.UpdateUser: " +
+				"error updating user:\n\t" + err.Error(),
+			ExternalMessage: "There was an error updating the user in the database.",
+		}
 	}
 
 	return nil
 }
 
-func (p Persister) GetUser(id string) (*User, error) {
+func (p Persister) GetUser(id string) (*User, *errors.PreflightError) {
 	user := &User{}
 	err := p.UserCollection.FindId(bson.ObjectIdHex(id)).One(user)
 	if err != nil {
-		return nil, errors.New("persistence.Persister.GetUser: " +
-			"error finding user id=" + id + ": \n\t" + err.Error())
+		return nil, &errors.PreflightError{
+			Status: 404,
+			InternalMessage: "persistence.Persister.GetUser: " +
+				"error finding user id=" + id + ": \n\t" + err.Error(),
+			ExternalMessage: "User with id " + id + " not found",
+		}
 	}
 
 	return user, nil
 }
 
-func (p Persister) GetUserByEmail(email string) (*User, error) {
+func (p Persister) GetUserByEmail(email string) (*User, *errors.PreflightError) {
 	user := &User{}
 	err := p.UserCollection.Find(bson.M{"email": email}).One(user)
 	if err != nil {
-		return nil, errors.New("persistence.Persister.GetUserByEmail: " +
-			"error finding user email=" + email + ": \n\t" + err.Error())
+		return nil, &errors.PreflightError{
+			Status: 404,
+			InternalMessage: "persistence.Persister.GetUserByEmail: " +
+				"error finding user email=" + email + ": \n\t" + err.Error(),
+			ExternalMessage: "User with email " + email + " not found",
+		}
 	}
 
 	return user, nil
 }
 
-func (p Persister) GetUserByToken(secret string) (*User, error) {
+func (p Persister) GetUserByToken(secret string) (*User, *errors.PreflightError) {
 	user := &User{}
 	err := p.UserCollection.Find(bson.M{"security.tokens.secret": secret}).One(user)
 	if err != nil {
-		return nil, errors.New("persistence.Persister.GetUserByToken: " +
-			"error finding user by token: \n\t" + err.Error())
+		return nil, &errors.PreflightError{
+			Status: 403,
+			InternalMessage: "persistence.Persister.GetUserByToken: " +
+				"error finding user by token: \n\t" + err.Error(),
+			ExternalMessage: "No user with that token was found",
+		}
 	}
 
 	return user, nil
