@@ -1,7 +1,10 @@
 package main
 
 import (
-	"fmt"
+	//"fmt"
+	//"github.com/jsutton9/preflight/api/errors"
+	"github.com/jsutton9/preflight/persistence"
+	"html"
 	"log"
 	"net/http"
 	"os"
@@ -39,6 +42,17 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 	//TODO: handle:
 	//	POST /users - add user
 	//	DELETE /users/{id} - delete user
+	logger := log.New(os.Stderr, "", log.Ldate | log.Ltime)
+	persister, err := persistence.New("localhost", "users")
+	if err != nil {
+		err = err.Prepend("api.handleUsers: error getting persister: ")
+		logger.Println(err.Error())
+		w.WriteHeader(err.Status)
+		w.Write([]byte(html.EscapeString(err.InternalMessage)))
+		return
+	}
+	defer persister.Close()
+
 	pathWords := strings.Split(r.URL.Path, "/")[1:]
 	if pathWords[len(pathWords)-1] == "" {
 		pathWords = pathWords[:len(pathWords)-1]
@@ -46,7 +60,7 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 	//query := r.URL.Query()
 
 	if strings.EqualFold(r.Method, "POST") && len(pathWords) == 1 {
-		//TODO
+		id, err := commands.AddUser(r.
 	}
 }
 
@@ -71,4 +85,10 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 	//TODO: handle:
 	//	PUT /settings/{setting-name} - update setting
 	//	GET /settings - get settings
+}
+
+func readBody(r *http.Request, limit int) (string, *errors.PreflightError) {
+	bodyBytes := make([]byte, limit)
+	n, err := r.Body.Read(bodyBytes)
+	//TODO: check for EOF, build length n string
 }
