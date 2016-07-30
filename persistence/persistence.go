@@ -229,7 +229,7 @@ func (p Persister) GetUserByToken(secret string) (*User, *errors.PreflightError)
 	err := p.UserCollection.Find(bson.M{"security.tokens.secret": secret}).One(user)
 	if err != nil {
 		return nil, &errors.PreflightError{
-			Status: 403,
+			Status: 401,
 			InternalMessage: "persistence.Persister.GetUserByToken: " +
 				"error finding user by token: \n\t" + err.Error(),
 			ExternalMessage: "No user with that token was found",

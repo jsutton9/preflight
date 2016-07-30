@@ -66,30 +66,15 @@ func TestUserCommands(t *testing.T) {
 		t.Fail()
 	}
 
-	passwordValidBefore, pErr := ValidatePassword(id, oldPassword, persister)
-	if pErr != nil {
-		t.Log("error validating password: " +
-			"\n\t" + pErr.Error())
-		t.Fail()
-	}
+	passwordValidBefore := ValidatePassword(id, oldPassword, persister)
 	pErr = ChangePassword(id, newPassword, persister)
 	if pErr != nil {
 		t.Log("error changing password: " +
 			"\n\t" + pErr.Error())
 		t.Fail()
 	}
-	oldPasswordValidAfter, pErr := ValidatePassword(id, oldPassword, persister)
-	if pErr != nil {
-		t.Log("error validating password: " +
-			"\n\t" + pErr.Error())
-		t.Fail()
-	}
-	newPasswordValidAfter, pErr := ValidatePassword(id, newPassword, persister)
-	if pErr != nil {
-		t.Log("error validating password: " +
-			"\n\t" + pErr.Error())
-		t.Fail()
-	}
+	oldPasswordValidAfter := ValidatePassword(id, oldPassword, persister)
+	newPasswordValidAfter := ValidatePassword(id, newPassword, persister)
 
 	if idEmail != id {
 		t.Logf("incorrect id from GetUserIdFromEmail: " +
@@ -101,19 +86,19 @@ func TestUserCommands(t *testing.T) {
 			"\n\t expected %s, got %s", id, idToken)
 		t.Fail()
 	}
-	if ! passwordValidBefore {
+	if passwordValidBefore != nil {
 		t.Log("password validation before change incorrect: " +
-			"\n\t expected true, got false")
+			"\n\t expected nil, got error")
 		t.Fail()
 	}
-	if oldPasswordValidAfter {
+	if oldPasswordValidAfter == nil {
 		t.Log("old password validation after change incorrect: " +
-			"\n\t expected false, got true")
+			"\n\t expected error, got nil")
 		t.Fail()
 	}
-	if ! newPasswordValidAfter {
+	if newPasswordValidAfter != nil {
 		t.Log("new password validation after change incorrect: " +
-			"\n\t expected true, got false")
+			"\n\t expected nil, got error")
 		t.Fail()
 	}
 }
@@ -385,4 +370,4 @@ func TestSettingsCommands(t *testing.T) {
 	}
 }
 
-//TODO: test Update, Invoke
+//TODO: test Update, Invoke, ValidateToken

@@ -10,12 +10,12 @@ func TestPassword(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if ! sec.ValidatePassword("password") {
-		t.Log("test failure, ValidatePassword: expected true, got false")
+	if sec.ValidatePassword("password") != nil {
+		t.Log("test failure, ValidatePassword: expected nil, got error")
 		t.Fail()
 	}
-	if sec.ValidatePassword("wrong") {
-		t.Log("test failure, ValidatePassword: expected false, got true")
+	if sec.ValidatePassword("wrong") == nil {
+		t.Log("test failure, ValidatePassword: expected error, got nil")
 		t.Fail()
 	}
 }
@@ -46,20 +46,20 @@ func TestValidateToken(t *testing.T) {
 		t.Fail()
 	}
 
-	if ! sec.ValidateToken(token.Secret, permissions) {
-		t.Log("test failure, ValidateToken: expected true, got false")
+	if sec.ValidateToken(token.Secret, permissions) != nil {
+		t.Log("test failure, ValidateToken: expected nil, got error")
 		t.Fail()
 	}
-	if ! sec.ValidateToken(token.Secret, noPermissions) {
-		t.Log("test failure, ValidateToken: expected true, got false")
+	if sec.ValidateToken(token.Secret, noPermissions) != nil {
+		t.Log("test failure, ValidateToken: expected nil, got error")
 		t.Fail()
 	}
-	if sec.ValidateToken(token.Secret, wrongPermissions) {
-		t.Log("test failure, ValidateToken: expected false, got true")
+	if sec.ValidateToken(token.Secret, wrongPermissions) == nil {
+		t.Log("test failure, ValidateToken: expected error, got nil")
 		t.Fail()
 	}
-	if sec.ValidateToken("wrong secret", permissions) {
-		t.Log("test failure, ValidateToken: expected false, got true")
+	if sec.ValidateToken("wrong secret", permissions) == nil {
+		t.Log("test failure, ValidateToken: expected error, got nil")
 		t.Fail()
 	}
 }
@@ -81,8 +81,8 @@ func TestDeleteToken(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if sec.ValidateToken(token.Secret, permissions) {
-		t.Log("test failure, ValidateToken: expected false, got true")
+	if sec.ValidateToken(token.Secret, permissions) == nil {
+		t.Log("test failure, ValidateToken: expected error, got nil")
 		t.Fail()
 	}
 }

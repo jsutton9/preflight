@@ -48,12 +48,18 @@ func New(password string) (*SecurityInfo, *errors.PreflightError) {
 	return &sec, nil
 }
 
-func (s *SecurityInfo) ValidatePassword(password string) bool {
+func (s *SecurityInfo) ValidatePassword(password string) *errors.PreflightError {
 	err := bcrypt.CompareHashAndPassword(s.PasswordHash, []byte(password))
-	if err == nil {
-		return true
+	if err != nil {
+		return &errors.PreflightError{
+			Status: 401,
+			InternalMessage: "security.ValidatePassword: error validating password: " +
+				"\n\t" + err.Error(),
+			ExternalMessage: "Invalid password",
+		}
+	} else {
+		return nil
 	}
-	return false
 }
 
 func (s *SecurityInfo) SetPassword(newPassword string) *errors.PreflightError {
@@ -71,25 +77,38 @@ func (s *SecurityInfo) SetPassword(newPassword string) *errors.PreflightError {
 	return nil
 }
 
-func (s *SecurityInfo) ValidateToken(secret string, permissions PermissionFlags) bool {
+func (s *SecurityInfo) ValidateToken(secret string, permissions PermissionFlags) *errors.PreflightError {
 	for _, token := range s.Tokens {
 		if token.Secret == secret {
 			now := time.Now()
 			if now.After(token.Expiry) {
-				return false
+				return &errors.PreflightError{
+					Status: 401,
+					InternalMessage: "security.ValidateToken: token expired",
+					ExternalMessage: "The user token is expired.",
+				}
 			}
 			if permissions.ChecklistRead && (! token.Permissions.ChecklistRead) ||
 				permissions.ChecklistWrite && (! token.Permissions.ChecklistWrite) ||
 				permissions.ChecklistInvoke && (! token.Permissions.ChecklistInvoke) ||
 				permissions.GeneralRead && (! token.Permissions.GeneralRead) ||
 				permissions.GeneralWrite && (! token.Permissions.GeneralWrite) {
-					return false
+					return &errors.PreflightError{
+						Status: 401,
+						InternalMessage: "security.ValidateToken: " +
+							"insufficient permissions",
+						ExternalMessage: "The user token does not have sufficient permissions.",
+					}
 				}
-			return true
+			return nil
 		}
 	}
 
-	return false
+	return &errors.PreflightError{
+		Status: 401,
+		InternalMessage: "security.ValidateToken: token not found",
+		ExternalMessage: "The user token was absent or not recognized.",
+	}
 }
 
 func (s *SecurityInfo) AddToken(permissions PermissionFlags, expiryHours int, description string) (*Token, *errors.PreflightError) {

@@ -103,13 +103,32 @@ func ChangePassword(id string, newPassword string, persister *persistence.Persis
 	return nil
 }
 
-func ValidatePassword(id string, password string, persister *persistence.Persister) (bool, *errors.PreflightError) {
+func ValidatePassword(id string, password string, persister *persistence.Persister) *errors.PreflightError {
 	user, err := persister.GetUser(id)
 	if err != nil {
-		return false, err.Prepend("commands.ValidatePassword: error getting user: ")
+		return err.Prepend("commands.ValidatePassword: error getting user: ")
 	}
 
-	return user.Security.ValidatePassword(password), nil
+	err = user.Security.ValidatePassword(password)
+	if err != nil {
+		return err.Prepend("commands.ValidatePassword: error validating password: ")
+	}
+
+	return nil
+}
+
+func ValidateToken(id string, secret string, permissions security.PermissionFlags, persister *persistence.Persister) *errors.PreflightError {
+	user, err := persister.GetUser(id)
+	if err != nil {
+		return err.Prepend("commands.ValidateToken: error getting user: ")
+	}
+
+	err = user.Security.ValidateToken(secret, permissions)
+	if err != nil {
+		return err.Prepend("commands.ValidateToken: error validating token: ")
+	}
+
+	return nil
 }
 
 func AddToken(id, tokenReqString string, persister *persistence.Persister) (string, *errors.PreflightError) {
