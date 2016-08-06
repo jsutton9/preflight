@@ -156,13 +156,80 @@ func handleChecklists(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(checklistString))
 	} else if strings.EqualFold(r.Method, "POST") && len(pathWords) == 1 {
-		//TODO
+		permissions := security.PermissionFlags{ChecklistWrite: true}
+		err = commands.ValidateToken(id, secret, permissions, persister)
+		if err != nil {
+			err.Prepend("api.handleChecklists: error validating token: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		body, err := readBody(r, 10000)
+		if err != nil {
+			err = err.Prepend("api.handleChecklists: error reading body: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+		checklistName, err := commands.AddChecklist(id, body, persister)
+		if err != nil {
+			err = err.Prepend("api.handleChecklists: error adding checklist: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+		newUrl := "https://" + r.Host + "/checklists/" + checklistName
+
+		w.Header().Add("Location", newUrl)
+		w.WriteHeader(201)
 	} else if strings.EqualFold(r.Method, "POST") && len(pathWords) == 3 {
 		//TODO
 	} else if strings.EqualFold(r.Method, "PUT") && len(pathWords) == 2 {
-		//TODO
+		permissions := security.PermissionFlags{ChecklistWrite: true}
+		err = commands.ValidateToken(id, secret, permissions, persister)
+		if err != nil {
+			err.Prepend("api.handleChecklists: error validating token: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		checklistName := pathWords[1]
+		body, err := readBody(r, 10000)
+		if err != nil {
+			err = err.Prepend("api.handleChecklists: error reading body: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+		err = commands.UpdateChecklist(id, checklistName, body, persister)
+		if err != nil {
+			err = err.Prepend("api.handleChecklists: error updating checklist: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+		w.WriteHeader(204)
 	} else if strings.EqualFold(r.Method, "DELETE") && len(pathWords) == 2 {
-		//TODO
+		permissions := security.PermissionFlags{ChecklistWrite: true}
+		err = commands.ValidateToken(id, secret, permissions, persister)
+		if err != nil {
+			err.Prepend("api.handleChecklists: error validating token: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		checklistName := pathWords[1]
+		err = commands.DeleteChecklist(id, checklistName, persister)
+		if err != nil {
+			err = err.Prepend("api.handleChecklists: error deleting checklist: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+		w.WriteHeader(204)
 	} else {
 		//TODO
 	}
@@ -256,8 +323,11 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 	//query := r.URL.Query()
 
 	if strings.EqualFold(r.Method, "GET") && len(pathWords) == 1 {
+		//TODO
 	} else if strings.EqualFold(r.Method, "PUT") && len(pathWords) == 2 {
+		//TODO
 	} else {
+		//TODO
 	}
 }
 

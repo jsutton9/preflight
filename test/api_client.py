@@ -1,4 +1,5 @@
 import json
+
 import requests
 
 class Client:
@@ -43,6 +44,7 @@ class Client:
                 "checklist": checklist}
         response = requests.post(url, json.dumps(req), verify=self.verify)
         response.raise_for_status()
+        return response.headers["Location"]
 
     def update_checklist(self, name, checklist):
         url = "%s/checklists/%s?token=%s" % (self.target, name, self.token)

@@ -372,11 +372,11 @@ func Invoke(id string, name string, trelloKey string, persister *persistence.Per
 	return nil
 }
 
-func AddChecklist(id, checklistReqString string, persister *persistence.Persister) *errors.PreflightError {
+func AddChecklist(id, checklistReqString string, persister *persistence.Persister) (string, *errors.PreflightError) {
 	request := checklistRequest{}
 	err := json.Unmarshal([]byte(checklistReqString), &request)
 	if err != nil {
-		return &errors.PreflightError{
+		return "", &errors.PreflightError{
 			Status: 400,
 			InternalMessage: "commands.AddUser: error parsing checklistReqString: " +
 				"\n\t" + err.Error(),
@@ -386,11 +386,11 @@ func AddChecklist(id, checklistReqString string, persister *persistence.Persiste
 
 	user, pErr := persister.GetUser(id)
 	if pErr != nil {
-		return pErr.Prepend("commands.AddChecklist: error getting user: ")
+		return "", pErr.Prepend("commands.AddChecklist: error getting user: ")
 	}
 	_, found := user.Checklists[request.Name]
 	if found {
-		return &errors.PreflightError{
+		return "", &errors.PreflightError{
 			Status: 409,
 			InternalMessage: "commands.AddChecklist: checklist \"" +
 				request.Name + "\" already exists",
@@ -401,10 +401,10 @@ func AddChecklist(id, checklistReqString string, persister *persistence.Persiste
 	user.Checklists[request.Name] = &request.Checklist
 	pErr = persister.UpdateUser(user)
 	if pErr != nil {
-		return pErr.Prepend("commands.AddChecklist: error updating user in db: ")
+		return "", pErr.Prepend("commands.AddChecklist: error updating user in db: ")
 	}
 
-	return nil
+	return request.Name, nil
 }
 
 func UpdateChecklist(id, name, checklistString string, persister *persistence.Persister) *errors.PreflightError {
