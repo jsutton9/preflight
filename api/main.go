@@ -31,7 +31,6 @@ func main() {
 	keyFile := os.Args[2]
 
 	//TODO: cert file, key file, port from config file
-	//TODO: inject persister
 
 	e_handleUsers := encloseHandler(handleUsers, logger, persister)
 	e_handleChecklists := encloseHandler(handleChecklists, logger, persister)
@@ -50,16 +49,8 @@ func main() {
 	log.Fatal(http.ListenAndServeTLS(":443", certFile, keyFile, nil))
 }
 
-//TODO: handler flow:
-//	1. instantiate persister, defer close (keep between calls?)
-//	2. parse path, branch
-//	3. extract token, verify permissions
-//	4. call command
-//	5. write response
-
 func handleUsers(w http.ResponseWriter, r *http.Request, logger *log.Logger, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
-	//query := r.URL.Query()
 
 	//TODO: verify server token
 
@@ -87,13 +78,6 @@ func handleUsers(w http.ResponseWriter, r *http.Request, logger *log.Logger, per
 }
 
 func handleChecklists(w http.ResponseWriter, r *http.Request, logger *log.Logger, persister *persistence.Persister) {
-	//TODO: handle:
-	//	POST /checklists/{name}/invoke - invoke checklist
-	//	POST /checklists - add checklist
-	//	DELETE /checklists/{name} - delete checklist
-	//	PUT /checklists/{name} - update checklist
-	//	GET /checklists/{name} - get checklist
-	//	GET /checklists - get all checklists
 	pathWords := getPathWords(r)
 	secret, err := getToken(r)
 	if err != nil {
@@ -249,10 +233,6 @@ func handleChecklists(w http.ResponseWriter, r *http.Request, logger *log.Logger
 }
 
 func handleTokens(w http.ResponseWriter, r *http.Request, logger *log.Logger, persister *persistence.Persister) {
-	//TODO: handle:
-	//	POST /tokens - add token
-	//	DELETE /tokens/{id} - delete token
-	//	GET /tokens - get all tokens
 	pathWords := getPathWords(r)
 
 	if strings.EqualFold(r.Method, "GET") && len(pathWords) == 1 {
@@ -309,9 +289,6 @@ func handleTokens(w http.ResponseWriter, r *http.Request, logger *log.Logger, pe
 }
 
 func handleSettings(w http.ResponseWriter, r *http.Request, logger *log.Logger, persister *persistence.Persister) {
-	//TODO: handle:
-	//	PUT /settings/{setting-name} - update setting
-	//	GET /settings - get settings
 	pathWords := getPathWords(r)
 	secret, err := getToken(r)
 	if err != nil {
