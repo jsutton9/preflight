@@ -24,15 +24,21 @@ func main() {
 	keyFile := os.Args[2]
 
 	//TODO: cert file, key file, port from config file
+	//TODO: inject persister
 
-	http.HandleFunc("/users", handleUsers)
-	http.HandleFunc("/users/", handleUsers)
-	http.HandleFunc("/checklists", handleChecklists)
-	http.HandleFunc("/checklists/", handleChecklists)
-	http.HandleFunc("/tokens", handleTokens)
-	http.HandleFunc("/tokens/", handleTokens)
-	http.HandleFunc("/settings", handleSettings)
-	http.HandleFunc("/settings/", handleSettings)
+	e_handleUsers := encloseHandler(handleUsers, logger)
+	e_handleChecklists := encloseHandler(handleChecklists, logger)
+	e_handleTokens := encloseHandler(handleTokens, logger)
+	e_handleSettings := encloseHandler(handleSettings, logger)
+
+	http.HandleFunc("/users", e_handleUsers)
+	http.HandleFunc("/users/", e_handleUsers)
+	http.HandleFunc("/checklists", e_handleChecklists)
+	http.HandleFunc("/checklists/", e_handleChecklists)
+	http.HandleFunc("/tokens", e_handleTokens)
+	http.HandleFunc("/tokens/", e_handleTokens)
+	http.HandleFunc("/settings", e_handleSettings)
+	http.HandleFunc("/settings/", e_handleSettings)
 
 	log.Fatal(http.ListenAndServeTLS(":443", certFile, keyFile, nil))
 }
@@ -44,8 +50,7 @@ func main() {
 //	4. call command
 //	5. write response
 
-func handleUsers(w http.ResponseWriter, r *http.Request) {
-	logger := log.New(os.Stderr, "", log.Ldate | log.Ltime)
+func handleUsers(w http.ResponseWriter, r *http.Request, logger *log.Logger) {
 	persister, err := persistence.New("localhost", "users")
 	if err != nil {
 		err = err.Prepend("api.handleUsers: error getting persister: ")
@@ -83,7 +88,7 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleChecklists(w http.ResponseWriter, r *http.Request) {
+func handleChecklists(w http.ResponseWriter, r *http.Request, logger *log.Logger) {
 	//TODO: handle:
 	//	POST /checklists/{name}/invoke - invoke checklist
 	//	POST /checklists - add checklist
@@ -91,7 +96,6 @@ func handleChecklists(w http.ResponseWriter, r *http.Request) {
 	//	PUT /checklists/{name} - update checklist
 	//	GET /checklists/{name} - get checklist
 	//	GET /checklists - get all checklists
-	logger := log.New(os.Stderr, "", log.Ldate | log.Ltime)
 	persister, err := persistence.New("localhost", "users")
 	if err != nil {
 		err = err.Prepend("api.handleChecklists: error getting persister: ")
@@ -255,12 +259,11 @@ func handleChecklists(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleTokens(w http.ResponseWriter, r *http.Request) {
+func handleTokens(w http.ResponseWriter, r *http.Request, logger *log.Logger) {
 	//TODO: handle:
 	//	POST /tokens - add token
 	//	DELETE /tokens/{id} - delete token
 	//	GET /tokens - get all tokens
-	logger := log.New(os.Stderr, "", log.Ldate | log.Ltime)
 	persister, err := persistence.New("localhost", "users")
 	if err != nil {
 		err = err.Prepend("api.handleTokens: error getting persister: ")
@@ -325,11 +328,10 @@ func handleTokens(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleSettings(w http.ResponseWriter, r *http.Request) {
+func handleSettings(w http.ResponseWriter, r *http.Request, logger *log.Logger) {
 	//TODO: handle:
 	//	PUT /settings/{setting-name} - update setting
 	//	GET /settings - get settings
-	logger := log.New(os.Stderr, "", log.Ldate | log.Ltime)
 	persister, err := persistence.New("localhost", "users")
 	if err != nil {
 		err = err.Prepend("api.handleSettings: error getting persister: ")
@@ -454,4 +456,10 @@ func getToken(r *http.Request) (string, *errors.PreflightError) {
 	}
 
 	return secret, nil
+}
+
+func encloseHandler(f func(http.ResponseWriter, *http.Request, *log.Logger), logger *log.Logger) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		f(w, r, logger)
+	}
 }
