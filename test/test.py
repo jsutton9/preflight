@@ -7,7 +7,7 @@ c = api_client.Client("https://localhost")
 print c.authorize("api-test2@foo.bar", "pass", {"checklistRead": True, "checklistWrite": True, "checklistInvoke": True, "GeneralRead": True, "GeneralWrite": True})
 
 print c.delete_checklist("bar")
-print c.add_checklist("bar", {"tasksSource": "preflight", "tasksTarget": "preflight", "isScheduled": False, "tasks": ["m", "n", "o"]})
+print c.add_checklist("bar", {"tasksSource": "preflight", "tasksTarget": "preflight", "isScheduled": False, "tasks": ["x", "y"]})
 
 print c.get_checklist("bar")
 

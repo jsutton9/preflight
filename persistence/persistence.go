@@ -25,6 +25,7 @@ type GeneralSettings struct {
 
 type Persister struct {
 	Session *mgo.Session
+	databaseName string
 	UserCollection *mgo.Collection
 	NodeCollection *mgo.Collection
 }
@@ -53,6 +54,7 @@ func New(url, database string) (*Persister, *errors.PreflightError) {
 
 	p := Persister{
 		Session: session,
+		databaseName: database,
 		UserCollection: userCollection,
 		NodeCollection: nodeCollection,
 	}
@@ -62,6 +64,18 @@ func New(url, database string) (*Persister, *errors.PreflightError) {
 
 func (p Persister) Close() {
 	p.Session.Close()
+}
+
+func (p Persister) Copy() *Persister {
+	session := p.Session.Copy()
+	userCollection := session.DB(p.databaseName).C("users")
+	nodeCollection := session.DB(p.databaseName).C("nodes")
+	return &Persister{
+		Session: session,
+		databaseName: p.databaseName,
+		UserCollection: userCollection,
+		NodeCollection: nodeCollection,
+	}
 }
 
 func (p Persister) InitializeNode() *errors.PreflightError {

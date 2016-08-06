@@ -19,6 +19,13 @@ func main() {
 		logger.Println("Usage: preflight-api CERT_FILE KEY_FILE")
 		return
 	}
+	persister, err := persistence.New("localhost", "users")
+	if err != nil {
+		err = err.Prepend("api.handleUsers: error getting persister: ")
+		logger.Println(err.Error())
+		return
+	}
+	defer persister.Close()
 
 	certFile := os.Args[1]
 	keyFile := os.Args[2]
@@ -26,10 +33,10 @@ func main() {
 	//TODO: cert file, key file, port from config file
 	//TODO: inject persister
 
-	e_handleUsers := encloseHandler(handleUsers, logger)
-	e_handleChecklists := encloseHandler(handleChecklists, logger)
-	e_handleTokens := encloseHandler(handleTokens, logger)
-	e_handleSettings := encloseHandler(handleSettings, logger)
+	e_handleUsers := encloseHandler(handleUsers, logger, persister)
+	e_handleChecklists := encloseHandler(handleChecklists, logger, persister)
+	e_handleTokens := encloseHandler(handleTokens, logger, persister)
+	e_handleSettings := encloseHandler(handleSettings, logger, persister)
 
 	http.HandleFunc("/users", e_handleUsers)
 	http.HandleFunc("/users/", e_handleUsers)
@@ -50,16 +57,7 @@ func main() {
 //	4. call command
 //	5. write response
 
-func handleUsers(w http.ResponseWriter, r *http.Request, logger *log.Logger) {
-	persister, err := persistence.New("localhost", "users")
-	if err != nil {
-		err = err.Prepend("api.handleUsers: error getting persister: ")
-		logger.Println(err.Error())
-		err.WriteResponse(w)
-		return
-	}
-	defer persister.Close()
-
+func handleUsers(w http.ResponseWriter, r *http.Request, logger *log.Logger, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
 	//query := r.URL.Query()
 
@@ -88,7 +86,7 @@ func handleUsers(w http.ResponseWriter, r *http.Request, logger *log.Logger) {
 	}
 }
 
-func handleChecklists(w http.ResponseWriter, r *http.Request, logger *log.Logger) {
+func handleChecklists(w http.ResponseWriter, r *http.Request, logger *log.Logger, persister *persistence.Persister) {
 	//TODO: handle:
 	//	POST /checklists/{name}/invoke - invoke checklist
 	//	POST /checklists - add checklist
@@ -96,15 +94,6 @@ func handleChecklists(w http.ResponseWriter, r *http.Request, logger *log.Logger
 	//	PUT /checklists/{name} - update checklist
 	//	GET /checklists/{name} - get checklist
 	//	GET /checklists - get all checklists
-	persister, err := persistence.New("localhost", "users")
-	if err != nil {
-		err = err.Prepend("api.handleChecklists: error getting persister: ")
-		logger.Println(err.Error())
-		err.WriteResponse(w)
-		return
-	}
-	defer persister.Close()
-
 	pathWords := getPathWords(r)
 	secret, err := getToken(r)
 	if err != nil {
@@ -259,20 +248,11 @@ func handleChecklists(w http.ResponseWriter, r *http.Request, logger *log.Logger
 	}
 }
 
-func handleTokens(w http.ResponseWriter, r *http.Request, logger *log.Logger) {
+func handleTokens(w http.ResponseWriter, r *http.Request, logger *log.Logger, persister *persistence.Persister) {
 	//TODO: handle:
 	//	POST /tokens - add token
 	//	DELETE /tokens/{id} - delete token
 	//	GET /tokens - get all tokens
-	persister, err := persistence.New("localhost", "users")
-	if err != nil {
-		err = err.Prepend("api.handleTokens: error getting persister: ")
-		logger.Println(err.Error())
-		err.WriteResponse(w)
-		return
-	}
-	defer persister.Close()
-
 	pathWords := getPathWords(r)
 
 	if strings.EqualFold(r.Method, "GET") && len(pathWords) == 1 {
@@ -280,7 +260,7 @@ func handleTokens(w http.ResponseWriter, r *http.Request, logger *log.Logger) {
 	} else if strings.EqualFold(r.Method, "POST") && len(pathWords) == 1 {
 		username, password, ok := r.BasicAuth()
 		if ! ok {
-			err = &errors.PreflightError{
+			err := &errors.PreflightError{
 				Status: 401,
 				InternalMessage: "api.handleTokens: no basic auth header",
 				ExternalMessage: "Basic authentication is required to add a token.",
@@ -328,19 +308,10 @@ func handleTokens(w http.ResponseWriter, r *http.Request, logger *log.Logger) {
 	}
 }
 
-func handleSettings(w http.ResponseWriter, r *http.Request, logger *log.Logger) {
+func handleSettings(w http.ResponseWriter, r *http.Request, logger *log.Logger, persister *persistence.Persister) {
 	//TODO: handle:
 	//	PUT /settings/{setting-name} - update setting
 	//	GET /settings - get settings
-	persister, err := persistence.New("localhost", "users")
-	if err != nil {
-		err = err.Prepend("api.handleSettings: error getting persister: ")
-		logger.Println(err.Error())
-		err.WriteResponse(w)
-		return
-	}
-	defer persister.Close()
-
 	pathWords := getPathWords(r)
 	secret, err := getToken(r)
 	if err != nil {
@@ -458,8 +429,10 @@ func getToken(r *http.Request) (string, *errors.PreflightError) {
 	return secret, nil
 }
 
-func encloseHandler(f func(http.ResponseWriter, *http.Request, *log.Logger), logger *log.Logger) func(http.ResponseWriter, *http.Request) {
+func encloseHandler(f func(http.ResponseWriter, *http.Request, *log.Logger, *persistence.Persister), logger *log.Logger, persister *persistence.Persister) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		f(w, r, logger)
+		pCopy := persister.Copy()
+		defer pCopy.Close()
+		f(w, r, logger, pCopy)
 	}
 }
