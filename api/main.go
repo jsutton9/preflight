@@ -58,8 +58,9 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 	pathWords := getPathWords(r)
 	//query := r.URL.Query()
 
+	//TODO: verify server token
+
 	if strings.EqualFold(r.Method, "POST") && len(pathWords) == 1 {
-		//TODO: verify server token
 		body, pErr := readBody(r, 1000)
 		if pErr != nil {
 			logger.Println(pErr.Error())
@@ -183,8 +184,27 @@ func handleChecklists(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Add("Location", newUrl)
 		w.WriteHeader(201)
-	} else if strings.EqualFold(r.Method, "POST") && len(pathWords) == 3 {
-		//TODO
+	} else if strings.EqualFold(r.Method, "POST") && len(pathWords) == 3 &&
+			strings.EqualFold(pathWords[2], "invoke") {
+		permissions := security.PermissionFlags{ChecklistInvoke: true}
+		err = commands.ValidateToken(id, secret, permissions, persister)
+		if err != nil {
+			err.Prepend("api.handleChecklists: error validating token: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		checklistName := pathWords[1]
+		err = commands.Invoke(id, checklistName, "", persister) //TODO: app trello key
+		if err != nil {
+			err = err.Prepend("api.handleChecklists: error invoking checklist: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		w.WriteHeader(204)
 	} else if strings.EqualFold(r.Method, "PUT") && len(pathWords) == 2 {
 		permissions := security.PermissionFlags{ChecklistWrite: true}
 		err = commands.ValidateToken(id, secret, permissions, persister)
@@ -320,12 +340,68 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 	defer persister.Close()
 
 	pathWords := getPathWords(r)
-	//query := r.URL.Query()
+	secret, err := getToken(r)
+	if err != nil {
+		err = err.Prepend("api.handleSettings: error getting token: ")
+		logger.Println(err.Error())
+		err.WriteResponse(w)
+		return
+	}
+	id, err := commands.GetUserIdFromToken(secret, persister)
+	if err != nil {
+		err = err.Prepend("api.handleSettings: error getting id: ")
+		logger.Println(err.Error())
+		err.WriteResponse(w)
+		return
+	}
 
 	if strings.EqualFold(r.Method, "GET") && len(pathWords) == 1 {
-		//TODO
+		permissions := security.PermissionFlags{GeneralRead: true}
+		err = commands.ValidateToken(id, secret, permissions, persister)
+		if err != nil {
+			err.Prepend("api.handleSettings: error validating token: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		settingsString, err := commands.GetGeneralSettings(id, persister)
+		if err != nil {
+			err = err.Prepend("api.handleSettings: error getting settings: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+		w.WriteHeader(200)
+		w.Write([]byte(settingsString))
 	} else if strings.EqualFold(r.Method, "PUT") && len(pathWords) == 2 {
-		//TODO
+		permissions := security.PermissionFlags{GeneralWrite: true}
+		err = commands.ValidateToken(id, secret, permissions, persister)
+		if err != nil {
+			err.Prepend("api.handleSettings: error validating token: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		settingName := pathWords[1]
+		settingValue, err := readBody(r, 10000)
+		if err != nil {
+			err = err.Prepend("api.handleSettings: error reading body: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		err = commands.SetGeneralSetting(id, settingName, settingValue, persister)
+		if err != nil {
+			err = err.Prepend("api.handleChecklists: error setting setting: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		w.WriteHeader(204)
 	} else {
 		//TODO
 	}
