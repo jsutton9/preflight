@@ -73,7 +73,7 @@ func handleUsers(w http.ResponseWriter, r *http.Request, logger *log.Logger, per
 		//id := pathWords[1]
 		//TODO
 	} else {
-		//TODO
+		w.WriteHeader(404)
 	}
 }
 
@@ -228,7 +228,7 @@ func handleChecklists(w http.ResponseWriter, r *http.Request, logger *log.Logger
 		}
 		w.WriteHeader(204)
 	} else {
-		//TODO
+		w.WriteHeader(404)
 	}
 }
 
@@ -284,7 +284,7 @@ func handleTokens(w http.ResponseWriter, r *http.Request, logger *log.Logger, pe
 	} else if strings.EqualFold(r.Method, "DELETE") && len(pathWords) == 2 {
 		//TODO
 	} else {
-		//TODO
+		w.WriteHeader(404)
 	}
 }
 
@@ -353,7 +353,7 @@ func handleSettings(w http.ResponseWriter, r *http.Request, logger *log.Logger, 
 
 		w.WriteHeader(204)
 	} else {
-		//TODO
+		w.WriteHeader(404)
 	}
 }
 
