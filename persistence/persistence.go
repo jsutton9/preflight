@@ -6,6 +6,7 @@ import (
 	"github.com/jsutton9/preflight/security"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"log"
 	"io/ioutil"
 	"os"
 )
@@ -28,6 +29,15 @@ type Persister struct {
 	databaseName string
 	UserCollection *mgo.Collection
 	NodeCollection *mgo.Collection
+}
+
+type ServerSettings struct {
+	Port int                       `json:"port"`
+	CertFile string                `json:"certPath"`
+	KeyFile string                 `json:"keyPath"`
+	LogFile string                 `json:"logPath"`
+	DatabaseServer string          `json:"databaseServer"`
+	DatabaseUsersCollection string `json:"databaseUsersCollection"`
 }
 
 type Node struct {
@@ -251,4 +261,43 @@ func (p Persister) GetUserByToken(secret string) (*User, *errors.PreflightError)
 	}
 
 	return user, nil
+}
+
+func (s ServerSettings) GetLogger() (*log.Logger, *errors.PreflightError) {
+	f, err := os.OpenFile(s.LogFile, 1, 660)
+	if os.IsNotExist(err) {
+		/*nameStart := len(s.LogFile)
+		while nameStart > 0 && s.LogFile[nameStart-1] != "/" {
+			nameStart--
+		}
+		dir := s.LogFile[:nameStart]
+		if len(dir) > 0 {
+			err = os.MkdirAll(dir)
+			if err != nil {
+				return &errors.PreflightError{
+					Status: 500,
+					InternalMessage: "persistence.GetLogger: error making directory for logger: " +
+						"\n\t" + err.Error(),
+					ExternalMessage: "There was an error.",
+				}
+			}
+		}*/
+		f, err := os.Create(s.LogFile)
+		if err != nil {
+		return nil, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "persistence.GetLogger: error opening log file \"" +
+				s.LogFile + "\"\n\t" + err.Error(),
+			ExternalMessage: "There was an error.",
+		}
+	} else if err != nil {
+		return nil, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "persistence.GetLogger: error opening log file \"" +
+				s.LogFile + "\"\n\t" + err.Error(),
+			ExternalMessage: "There was an error.",
+		}
+	}
+
+	return log.New(f, "", log.Ldate | log.Ltime), nil
 }
