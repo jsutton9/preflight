@@ -198,7 +198,7 @@ func TestLogging(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := ServerSettings{LogFile: testFile}
+	s := ServerSettings{ErrLog: testFile}
 
 	logger, pErr := s.GetLogger()
 	if pErr != nil {

@@ -32,11 +32,11 @@ type Persister struct {
 	NodeCollection *mgo.Collection
 }
 
-type ServerSettings struct { //TODO: defaults
+type ServerSettings struct {
 	Port int                       `json:"port"`
-	CertFile string                `json:"certPath"`
-	KeyFile string                 `json:"keyPath"`
-	LogFile string                 `json:"logPath"`
+	CertFile string                `json:"certFile"`
+	KeyFile string                 `json:"keyFile"`
+	ErrLog string                  `json:"errLog"`
 	DatabaseServer string          `json:"databaseServer"`
 	DatabaseUsersCollection string `json:"databaseUsersCollection"`
 }
@@ -281,7 +281,12 @@ func GetServerSettings(filename string) (*ServerSettings, *errors.PreflightError
 		}
 	}
 
-	settings := new(ServerSettings)
+	settings := &ServerSettings{
+		Port: 443,
+		ErrLog: "",
+		DatabaseServer: "localhost",
+		DatabaseUsersCollection: "users",
+	}
 	err = json.Unmarshal(contents, settings)
 	if err != nil {
 		return nil, &errors.PreflightError{
@@ -300,13 +305,13 @@ func (s ServerSettings) GetLogger() (*LoggerCloser, *errors.PreflightError) {
 	logger.file = os.Stderr
 	logger.isStderr = true
 
-	if s.LogFile != "" {
+	if s.ErrLog != "" {
 		logger.isStderr = false
 		var err error
-		logger.file, err = os.OpenFile(s.LogFile, 1, 660)
+		logger.file, err = os.OpenFile(s.ErrLog, 1, 0660)
 		if os.IsNotExist(err) {
 			var pErr *errors.PreflightError
-			logger.file, pErr = createFile(s.LogFile)
+			logger.file, pErr = createFile(s.ErrLog)
 			if pErr != nil {
 				pErr.Prepend("persistence.ServerSettings.GetLogger: " +
 					"error creating file: ")
@@ -316,7 +321,7 @@ func (s ServerSettings) GetLogger() (*LoggerCloser, *errors.PreflightError) {
 			return nil, &errors.PreflightError{
 				Status: 500,
 				InternalMessage: "persistence.ServerSettings.GetLogger: " +
-					"error opening log file \"" + s.LogFile +
+					"error opening log file \"" + s.ErrLog +
 					"\": \n\t" + err.Error(),
 				ExternalMessage: "There was an error.",
 			}
@@ -325,6 +330,14 @@ func (s ServerSettings) GetLogger() (*LoggerCloser, *errors.PreflightError) {
 
 	logger.Logger = log.New(logger.file, "", log.Ldate | log.Ltime)
 	return logger, nil
+}
+
+func (s ServerSettings) GetPersister() (*Persister, *errors.PreflightError) {
+	persister, err := New(s.DatabaseServer, s.DatabaseUsersCollection)
+	if err != nil {
+		err.Prepend("persistence.ServerSettings.GetPersister: error making Persister: ")
+	}
+	return persister, err
 }
 
 func (l LoggerCloser) Close() error {

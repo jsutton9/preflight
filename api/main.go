@@ -6,31 +6,39 @@ import (
 	"github.com/jsutton9/preflight/commands"
 	"github.com/jsutton9/preflight/persistence"
 	"github.com/jsutton9/preflight/security"
-	//"html"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 )
 
 func main() {
-	logger := log.New(os.Stderr, "", log.Ldate | log.Ltime)
-	if len(os.Args) != 3 {
-		logger.Println("Usage: preflight-api CERT_FILE KEY_FILE")
+	if len(os.Args) != 2 {
+		fmt.Println("Usage: preflight-api CONFIG_FILE")
 		return
 	}
-	persister, err := persistence.New("localhost", "users")
+	settings, err := persistence.GetServerSettings(os.Args[1])
 	if err != nil {
-		err = err.Prepend("api.handleUsers: error getting persister: ")
-		logger.Println(err.Error())
+		err.Prepend("api.main: error getting server settings: ")
+		fmt.Println(err.Error())
+		return
+	}
+
+	logger, err := settings.GetLogger()
+	if err != nil {
+		err.Prepend("api.main: error getting logger: ")
+		fmt.Println(err.Error())
+		return
+	}
+	defer logger.Close()
+	persister, err := settings.GetPersister()
+	if err != nil {
+		err.Prepend("api.main: error getting persister: ")
+		fmt.Println(err.Error())
 		return
 	}
 	defer persister.Close()
-
-	certFile := os.Args[1]
-	keyFile := os.Args[2]
-
-	//TODO: cert file, key file, port from config file
 
 	e_handleUsers := encloseHandler(handleUsers, logger, persister)
 	e_handleChecklists := encloseHandler(handleChecklists, logger, persister)
@@ -46,10 +54,11 @@ func main() {
 	http.HandleFunc("/settings", e_handleSettings)
 	http.HandleFunc("/settings/", e_handleSettings)
 
-	log.Fatal(http.ListenAndServeTLS(":443", certFile, keyFile, nil))
+	portString := ":" + strconv.Itoa(settings.Port)
+	log.Fatal(http.ListenAndServeTLS(portString, settings.CertFile, settings.KeyFile, nil))
 }
 
-func handleUsers(w http.ResponseWriter, r *http.Request, logger *log.Logger, persister *persistence.Persister) {
+func handleUsers(w http.ResponseWriter, r *http.Request, logger *persistence.LoggerCloser, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
 
 	//TODO: verify server token
@@ -77,7 +86,7 @@ func handleUsers(w http.ResponseWriter, r *http.Request, logger *log.Logger, per
 	}
 }
 
-func handleChecklists(w http.ResponseWriter, r *http.Request, logger *log.Logger, persister *persistence.Persister) {
+func handleChecklists(w http.ResponseWriter, r *http.Request, logger *persistence.LoggerCloser, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
 	secret, err := getToken(r)
 	if err != nil {
@@ -232,7 +241,7 @@ func handleChecklists(w http.ResponseWriter, r *http.Request, logger *log.Logger
 	}
 }
 
-func handleTokens(w http.ResponseWriter, r *http.Request, logger *log.Logger, persister *persistence.Persister) {
+func handleTokens(w http.ResponseWriter, r *http.Request, logger *persistence.LoggerCloser, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
 
 	if strings.EqualFold(r.Method, "GET") && len(pathWords) == 1 {
@@ -288,7 +297,7 @@ func handleTokens(w http.ResponseWriter, r *http.Request, logger *log.Logger, pe
 	}
 }
 
-func handleSettings(w http.ResponseWriter, r *http.Request, logger *log.Logger, persister *persistence.Persister) {
+func handleSettings(w http.ResponseWriter, r *http.Request, logger *persistence.LoggerCloser, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
 	secret, err := getToken(r)
 	if err != nil {
@@ -406,7 +415,7 @@ func getToken(r *http.Request) (string, *errors.PreflightError) {
 	return secret, nil
 }
 
-func encloseHandler(f func(http.ResponseWriter, *http.Request, *log.Logger, *persistence.Persister), logger *log.Logger, persister *persistence.Persister) func(http.ResponseWriter, *http.Request) {
+func encloseHandler(f func(http.ResponseWriter, *http.Request, *persistence.LoggerCloser, *persistence.Persister), logger *persistence.LoggerCloser, persister *persistence.Persister) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pCopy := persister.Copy()
 		defer pCopy.Close()
