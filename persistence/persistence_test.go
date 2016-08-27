@@ -4,6 +4,7 @@ import (
 	"testing"
 	"fmt"
 	"github.com/jsutton9/preflight/security"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"strings"
@@ -204,16 +205,14 @@ func TestLogging(t *testing.T) {
 		pErr.Prepend("error getting logger: ")
 		t.Fatal(pErr)
 	}
+	defer logger.Close()
 	logger.Println(testString)
 
-	f, err := os.Open(testFile)
-	defer f.Close()
-	readBytes := make([]byte, 200)
-	readSize, err := f.Read(readBytes)
-	if err != nil && err.Error() != "EOF" {
+	readBytes, err := ioutil.ReadFile(testFile)
+	if err != nil {
 		t.Fatal(err)
 	}
-	readString := string(readBytes[:readSize])
+	readString := string(readBytes)
 
 	if ! strings.Contains(readString, testString) {
 		t.Logf("logged message incorrect: expected \"%s\", got \"%s\"",

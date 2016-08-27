@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"encoding/json"
 	"github.com/jsutton9/preflight/api/errors"
 	"github.com/jsutton9/preflight/checklist"
 	"github.com/jsutton9/preflight/security"
@@ -42,6 +43,12 @@ type ServerSettings struct { //TODO: defaults
 
 type Node struct {
 	Secret string
+}
+
+type LoggerCloser struct {
+	*log.Logger
+	file *os.File
+	isStderr bool
 }
 
 func (u *User) GetId() string {
@@ -263,6 +270,70 @@ func (p Persister) GetUserByToken(secret string) (*User, *errors.PreflightError)
 	return user, nil
 }
 
+func GetServerSettings(filename string) (*ServerSettings, *errors.PreflightError) {
+	contents, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "persistence.GetServerSettings: error reading file: " +
+				"\n\t" + err.Error(),
+			ExternalMessage: "There was an error.",
+		}
+	}
+
+	settings := new(ServerSettings)
+	err = json.Unmarshal(contents, settings)
+	if err != nil {
+		return nil, &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "persistence.GetServerSettings: error parsing json: " +
+				"\n\t" + err.Error(),
+			ExternalMessage: "There was an error.",
+		}
+	}
+
+	return settings, nil
+}
+
+func (s ServerSettings) GetLogger() (*LoggerCloser, *errors.PreflightError) {
+	logger := new(LoggerCloser)
+	logger.file = os.Stderr
+	logger.isStderr = true
+
+	if s.LogFile != "" {
+		logger.isStderr = false
+		var err error
+		logger.file, err = os.OpenFile(s.LogFile, 1, 660)
+		if os.IsNotExist(err) {
+			var pErr *errors.PreflightError
+			logger.file, pErr = createFile(s.LogFile)
+			if pErr != nil {
+				pErr.Prepend("persistence.ServerSettings.GetLogger: " +
+					"error creating file: ")
+				return nil, pErr
+			}
+		} else if err != nil {
+			return nil, &errors.PreflightError{
+				Status: 500,
+				InternalMessage: "persistence.ServerSettings.GetLogger: " +
+					"error opening log file \"" + s.LogFile +
+					"\": \n\t" + err.Error(),
+				ExternalMessage: "There was an error.",
+			}
+		}
+	}
+
+	logger.Logger = log.New(logger.file, "", log.Ldate | log.Ltime)
+	return logger, nil
+}
+
+func (l LoggerCloser) Close() error {
+	if ! l.isStderr {
+		return l.file.Close()
+	}
+	return nil
+}
+
 func createFile(path string) (*os.File, *errors.PreflightError) {
 	nameStart := len(path)
 	for ; nameStart>0; nameStart-- {
@@ -293,30 +364,4 @@ func createFile(path string) (*os.File, *errors.PreflightError) {
 	}
 
 	return f, nil
-}
-
-func (s ServerSettings) GetLogger() (*log.Logger, *errors.PreflightError) {
-	f := os.Stderr
-
-	if s.LogFile != "" {
-		var err error
-		f, err = os.OpenFile(s.LogFile, 1, 660)
-		if os.IsNotExist(err) {
-			var pErr *errors.PreflightError
-			f, pErr = createFile(s.LogFile)
-			if pErr != nil {
-				pErr.Prepend("persistence.GetLogger: error creating file: ")
-				return nil, pErr
-			}
-		} else if err != nil {
-			return nil, &errors.PreflightError{
-				Status: 500,
-				InternalMessage: "persistence.GetLogger: error opening log file \"" +
-					s.LogFile + "\": \n\t" + err.Error(),
-				ExternalMessage: "There was an error.",
-			}
-		}
-	}
-
-	return log.New(f, "", log.Ldate | log.Ltime), nil
 }
