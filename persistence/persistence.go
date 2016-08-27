@@ -31,7 +31,7 @@ type Persister struct {
 	NodeCollection *mgo.Collection
 }
 
-type ServerSettings struct {
+type ServerSettings struct { //TODO: defaults
 	Port int                       `json:"port"`
 	CertFile string                `json:"certPath"`
 	KeyFile string                 `json:"keyPath"`
@@ -263,39 +263,58 @@ func (p Persister) GetUserByToken(secret string) (*User, *errors.PreflightError)
 	return user, nil
 }
 
-func (s ServerSettings) GetLogger() (*log.Logger, *errors.PreflightError) {
-	f, err := os.OpenFile(s.LogFile, 1, 660)
-	if os.IsNotExist(err) {
-		/*nameStart := len(s.LogFile)
-		while nameStart > 0 && s.LogFile[nameStart-1] != "/" {
-			nameStart--
+func createFile(path string) (*os.File, *errors.PreflightError) {
+	nameStart := len(path)
+	for ; nameStart>0; nameStart-- {
+		if path[nameStart-1] == "/"[0] {
+			break
 		}
-		dir := s.LogFile[:nameStart]
-		if len(dir) > 0 {
-			err = os.MkdirAll(dir)
-			if err != nil {
-				return &errors.PreflightError{
-					Status: 500,
-					InternalMessage: "persistence.GetLogger: error making directory for logger: " +
-						"\n\t" + err.Error(),
-					ExternalMessage: "There was an error.",
-				}
-			}
-		}*/
-		f, err := os.Create(s.LogFile)
+	}
+	dir := path[:nameStart]
+	if len(dir) > 0 {
+		err := os.MkdirAll(dir, os.ModeDir | 0774)
 		if err != nil {
+			return nil, &errors.PreflightError{
+				Status: 500,
+				InternalMessage: "persistence.createFile: " +
+					"error making directory: \n\t" + err.Error(),
+				ExternalMessage: "There was an error.",
+			}
+		}
+	}
+	f, err := os.Create(path)
+	if err != nil {
 		return nil, &errors.PreflightError{
 			Status: 500,
-			InternalMessage: "persistence.GetLogger: error opening log file \"" +
-				s.LogFile + "\"\n\t" + err.Error(),
+			InternalMessage: "persistence.createFile: error creating file \"" +
+				path + "\": \n\t" + err.Error(),
 			ExternalMessage: "There was an error.",
 		}
-	} else if err != nil {
-		return nil, &errors.PreflightError{
-			Status: 500,
-			InternalMessage: "persistence.GetLogger: error opening log file \"" +
-				s.LogFile + "\"\n\t" + err.Error(),
-			ExternalMessage: "There was an error.",
+	}
+
+	return f, nil
+}
+
+func (s ServerSettings) GetLogger() (*log.Logger, *errors.PreflightError) {
+	f := os.Stderr
+
+	if s.LogFile != "" {
+		var err error
+		f, err = os.OpenFile(s.LogFile, 1, 660)
+		if os.IsNotExist(err) {
+			var pErr *errors.PreflightError
+			f, pErr = createFile(s.LogFile)
+			if pErr != nil {
+				pErr.Prepend("persistence.GetLogger: error creating file: ")
+				return nil, pErr
+			}
+		} else if err != nil {
+			return nil, &errors.PreflightError{
+				Status: 500,
+				InternalMessage: "persistence.GetLogger: error opening log file \"" +
+					s.LogFile + "\": \n\t" + err.Error(),
+				ExternalMessage: "There was an error.",
+			}
 		}
 	}
 

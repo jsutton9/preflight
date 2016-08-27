@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/jsutton9/preflight/security"
 	"math/rand"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -183,6 +185,39 @@ func TestNode(t *testing.T) {
 	}
 	if wrongSecretValid {
 		t.Log("secret incorrectly validated: expected false, got true")
+		t.Fail()
+	}
+}
+
+func TestLogging(t *testing.T) {
+	testDir := "/var/log/preflight/test/"
+	testFile := testDir + "foo/test.log"
+	testString := "test string"
+	err := os.RemoveAll(testDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := ServerSettings{LogFile: testFile}
+
+	logger, pErr := s.GetLogger()
+	if pErr != nil {
+		pErr.Prepend("error getting logger: ")
+		t.Fatal(pErr)
+	}
+	logger.Println(testString)
+
+	f, err := os.Open(testFile)
+	defer f.Close()
+	readBytes := make([]byte, 200)
+	readSize, err := f.Read(readBytes)
+	if err != nil && err.Error() != "EOF" {
+		t.Fatal(err)
+	}
+	readString := string(readBytes[:readSize])
+
+	if ! strings.Contains(readString, testString) {
+		t.Logf("logged message incorrect: expected \"%s\", got \"%s\"",
+			testString, readString)
 		t.Fail()
 	}
 }
