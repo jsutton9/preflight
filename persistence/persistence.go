@@ -39,6 +39,7 @@ type ServerSettings struct {
 	ErrLog string                  `json:"errLog"`
 	DatabaseServer string          `json:"databaseServer"`
 	DatabaseUsersCollection string `json:"databaseUsersCollection"`
+	TrelloAppKey string            `json:"trelloAppKey"`
 }
 
 type Node struct {

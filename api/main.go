@@ -40,10 +40,10 @@ func main() {
 	}
 	defer persister.Close()
 
-	e_handleUsers := encloseHandler(handleUsers, logger, persister)
-	e_handleChecklists := encloseHandler(handleChecklists, logger, persister)
-	e_handleTokens := encloseHandler(handleTokens, logger, persister)
-	e_handleSettings := encloseHandler(handleSettings, logger, persister)
+	e_handleUsers := encloseHandler(handleUsers, settings, logger, persister)
+	e_handleChecklists := encloseHandler(handleChecklists, settings, logger, persister)
+	e_handleTokens := encloseHandler(handleTokens, settings, logger, persister)
+	e_handleSettings := encloseHandler(handleSettings, settings, logger, persister)
 
 	http.HandleFunc("/users", e_handleUsers)
 	http.HandleFunc("/users/", e_handleUsers)
@@ -58,7 +58,7 @@ func main() {
 	log.Fatal(http.ListenAndServeTLS(portString, settings.CertFile, settings.KeyFile, nil))
 }
 
-func handleUsers(w http.ResponseWriter, r *http.Request, logger *persistence.LoggerCloser, persister *persistence.Persister) {
+func handleUsers(w http.ResponseWriter, r *http.Request, settings *persistence.ServerSettings, logger *persistence.LoggerCloser, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
 
 	//TODO: verify server token
@@ -78,15 +78,15 @@ func handleUsers(w http.ResponseWriter, r *http.Request, logger *persistence.Log
 		}
 		w.WriteHeader(201)
 		w.Write([]byte(id))
-	} else if strings.EqualFold(r.Method, "DELETE") && len(pathWords) == 2 {
-		//id := pathWords[1]
-		//TODO
+	//} else if strings.EqualFold(r.Method, "DELETE") && len(pathWords) == 2 {
+	//	id := pathWords[1]
+	//	TODO
 	} else {
 		w.WriteHeader(404)
 	}
 }
 
-func handleChecklists(w http.ResponseWriter, r *http.Request, logger *persistence.LoggerCloser, persister *persistence.Persister) {
+func handleChecklists(w http.ResponseWriter, r *http.Request, settings *persistence.ServerSettings, logger *persistence.LoggerCloser, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
 	secret, err := getToken(r)
 	if err != nil {
@@ -182,7 +182,7 @@ func handleChecklists(w http.ResponseWriter, r *http.Request, logger *persistenc
 		}
 
 		checklistName := pathWords[1]
-		err = commands.Invoke(id, checklistName, "", persister) //TODO: app trello key
+		err = commands.Invoke(id, checklistName, settings.TrelloAppKey, persister)
 		if err != nil {
 			err = err.Prepend("api.handleChecklists: error invoking checklist: ")
 			logger.Println(err.Error())
@@ -241,7 +241,7 @@ func handleChecklists(w http.ResponseWriter, r *http.Request, logger *persistenc
 	}
 }
 
-func handleTokens(w http.ResponseWriter, r *http.Request, logger *persistence.LoggerCloser, persister *persistence.Persister) {
+func handleTokens(w http.ResponseWriter, r *http.Request, settings *persistence.ServerSettings, logger *persistence.LoggerCloser, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
 
 	if strings.EqualFold(r.Method, "GET") && len(pathWords) == 1 {
@@ -297,7 +297,7 @@ func handleTokens(w http.ResponseWriter, r *http.Request, logger *persistence.Lo
 	}
 }
 
-func handleSettings(w http.ResponseWriter, r *http.Request, logger *persistence.LoggerCloser, persister *persistence.Persister) {
+func handleSettings(w http.ResponseWriter, r *http.Request, settings *persistence.ServerSettings, logger *persistence.LoggerCloser, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
 	secret, err := getToken(r)
 	if err != nil {
@@ -415,10 +415,10 @@ func getToken(r *http.Request) (string, *errors.PreflightError) {
 	return secret, nil
 }
 
-func encloseHandler(f func(http.ResponseWriter, *http.Request, *persistence.LoggerCloser, *persistence.Persister), logger *persistence.LoggerCloser, persister *persistence.Persister) func(http.ResponseWriter, *http.Request) {
+func encloseHandler(f func(http.ResponseWriter, *http.Request, *persistence.ServerSettings, *persistence.LoggerCloser, *persistence.Persister), settings *persistence.ServerSettings, logger *persistence.LoggerCloser, persister *persistence.Persister) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pCopy := persister.Copy()
 		defer pCopy.Close()
-		f(w, r, logger, pCopy)
+		f(w, r, settings, logger, pCopy)
 	}
 }
