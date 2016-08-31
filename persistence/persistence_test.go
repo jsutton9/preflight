@@ -148,16 +148,17 @@ func TestNoDuplicateEmails(t *testing.T) {
 
 func TestNode(t *testing.T) {
 	wrongSecret := "wrong"
+	secretFile := "/etc/preflight/test/secret"
 	p, err := New("localhost", "preflight-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = p.InitializeNode()
+	err = p.InitializeNode(secretFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	secret, err := p.GetNodeSecret()
+	secret, err := p.GetNodeSecret(secretFile)
 	if err != nil {
 		t.Fatal(err)
 	}

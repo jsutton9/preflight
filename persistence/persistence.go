@@ -40,6 +40,7 @@ type ServerSettings struct {
 	DatabaseServer string          `json:"databaseServer"`
 	DatabaseUsersCollection string `json:"databaseUsersCollection"`
 	TrelloAppKey string            `json:"trelloAppKey"`
+	SecretFile string              `json:"secretFile"`
 }
 
 type Node struct {
@@ -96,41 +97,34 @@ func (p Persister) Copy() *Persister {
 	}
 }
 
-func (p Persister) InitializeNode() *errors.PreflightError {
+func (p Persister) InitializeNode(secretFile string) *errors.PreflightError {
 	secret, pErr := security.GenerateNodeSecret()
 	if pErr != nil {
 		return pErr.Prepend("persistence.Persister.InitializeNode: error generating secret: ")
 	}
 
-	dir := os.Getenv("HOME")+"/preflight/"
-	err := ioutil.WriteFile(dir+"secret", []byte(secret), 0600)
-	if err != nil {
-		if os.IsNotExist(err) {
-			err = os.MkdirAll(dir, 0700)
-			if err != nil {
-				return &errors.PreflightError{
-					Status: 500,
-					InternalMessage: "persistence.Persister.InitializeNode: " +
-						"error making directory \""+dir+"\": \n\t" + err.Error(),
-					ExternalMessage: "There was an error initializing the node.",
-				}
-			}
-			err = ioutil.WriteFile(dir+"secret", []byte(secret), 0600)
-			if err != nil {
-				return &errors.PreflightError{
-					Status: 500,
-					InternalMessage: "persistence.Persister.InitializeNode: " +
-						"error writing secret file: \n\t" + err.Error(),
-					ExternalMessage: "There was an error initializing the node.",
-				}
-			}
-		} else {
+	err := ioutil.WriteFile(secretFile, []byte(secret), 0600)
+	if os.IsNotExist(err) {
+		_, pErr := createFile(secretFile)
+		if pErr != nil {
+			pErr.Prepend("persistence.Persister.InitializeNode: error making file: ")
+			return pErr
+		}
+		err = ioutil.WriteFile(secretFile, []byte(secret), 0600)
+		if err != nil {
 			return &errors.PreflightError{
 				Status: 500,
 				InternalMessage: "persistence.Persister.InitializeNode: " +
 					"error writing secret file: \n\t" + err.Error(),
 				ExternalMessage: "There was an error initializing the node.",
 			}
+		}
+	} else if err != nil {
+		return &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "persistence.Persister.InitializeNode: " +
+				"error writing secret file: \n\t" + err.Error(),
+			ExternalMessage: "There was an error initializing the node.",
 		}
 	}
 
@@ -148,9 +142,8 @@ func (p Persister) InitializeNode() *errors.PreflightError {
 	return nil
 }
 
-func (p Persister) GetNodeSecret() (string, *errors.PreflightError) {
-	dir := os.Getenv("HOME")+"/preflight/"
-	data, err := ioutil.ReadFile(dir+"secret")
+func (p Persister) GetNodeSecret(filename string) (string, *errors.PreflightError) {
+	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return "", &errors.PreflightError{
 			Status: 500,
