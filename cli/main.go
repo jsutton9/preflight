@@ -22,6 +22,7 @@ func main() {
 	usage += "\tpreflight set-trello-token EMAIL TOKEN\n"
 	usage += "\tpreflight get-general-settings EMAIL\n"
 	usage += "\tpreflight set-general-setting EMAIL SETTING VALUE\n"
+	usage += "\tpreflight register-node CONFIG_FILE\n"
 
 	logger := log.New(os.Stderr, "", log.Ldate | log.Ltime)
 	if len(os.Args) < 2 {
@@ -137,7 +138,7 @@ func main() {
 			return
 		}
 		checklistReq := fmt.Sprintf("{\"name\":\"%s\",\"checklist\":%s}", name, string(checklistBytes))
-		err = commands.AddChecklist(id, checklistReq, persister)
+		_, err = commands.AddChecklist(id, checklistReq, persister)
 		if err != nil {
 			logger.Println(err.Prepend("main: error adding checklist: ").Error())
 			return
@@ -280,6 +281,27 @@ func main() {
 		err = commands.SetGeneralSetting(id, setting, value, persister)
 		if err != nil {
 			logger.Println(err.Prepend("main: error setting \"" +setting + "\": ").Error())
+			return
+		}
+	} else if os.Args[1] == "register-node" {
+		if len(os.Args) != 3 {
+			logger.Println(usage)
+			return
+		}
+		configFile := os.Args[2]
+		settings, err := persistence.GetServerSettings(configFile)
+		if err != nil {
+			logger.Println(err.Prepend("main: error loading server settings: ").Error())
+			return
+		}
+		persister, err := persistence.New(settings.DatabaseServer, settings.DatabaseUsersCollection)
+		if err != nil {
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
+			return
+		}
+		err = persister.RegisterNode(settings.SecretFile)
+		if err != nil {
+			logger.Println(err.Prepend("main: error registering node: ").Error())
 			return
 		}
 	} else {

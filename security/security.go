@@ -180,7 +180,7 @@ func GenerateNodeSecret() (string, *errors.PreflightError) {
 			Status: 500,
 			InternalMessage: "security.GenerateNodeSecret: error generating secret: " +
 				"\n\t" + err.Error(),
-			ExternalMessage: "There was an error initializing the node.",
+			ExternalMessage: "There was an error registering the node.",
 		}
 	}
 	secretPattern := fmt.Sprintf("%%0%dx", SECRET_BITS/4)

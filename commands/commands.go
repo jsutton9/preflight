@@ -117,6 +117,22 @@ func ValidatePassword(id string, password string, persister *persistence.Persist
 	return nil
 }
 
+func ValidateNodeSecret(secret string, persister *persistence.Persister) *errors.PreflightError {
+	valid, err := persister.ValidateNodeSecret(secret)
+	if err != nil {
+		err.Prepend("commands.ValidateNodeSecret: error validating node secret: ")
+		return err
+	} else if ! valid {
+		return &errors.PreflightError{
+			Status: 401,
+			InternalMessage: "commands.ValidateNodeSecret: Node secret invalid",
+			ExternalMessage: "Node secret invalid",
+		}
+	}
+
+	return nil
+}
+
 func ValidateToken(id string, secret string, permissions security.PermissionFlags, persister *persistence.Persister) *errors.PreflightError {
 	user, err := persister.GetUser(id)
 	if err != nil {

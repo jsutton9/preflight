@@ -154,7 +154,7 @@ func TestNode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = p.InitializeNode(secretFile)
+	err = p.RegisterNode(secretFile)
 	if err != nil {
 		t.Fatal(err)
 	}

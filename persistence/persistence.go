@@ -97,34 +97,34 @@ func (p Persister) Copy() *Persister {
 	}
 }
 
-func (p Persister) InitializeNode(secretFile string) *errors.PreflightError {
+func (p Persister) RegisterNode(secretFile string) *errors.PreflightError {
 	secret, pErr := security.GenerateNodeSecret()
 	if pErr != nil {
-		return pErr.Prepend("persistence.Persister.InitializeNode: error generating secret: ")
+		return pErr.Prepend("persistence.Persister.RegisterNode: error generating secret: ")
 	}
 
 	err := ioutil.WriteFile(secretFile, []byte(secret), 0600)
 	if os.IsNotExist(err) {
 		_, pErr := createFile(secretFile)
 		if pErr != nil {
-			pErr.Prepend("persistence.Persister.InitializeNode: error making file: ")
+			pErr.Prepend("persistence.Persister.RegisterNode: error making file: ")
 			return pErr
 		}
 		err = ioutil.WriteFile(secretFile, []byte(secret), 0600)
 		if err != nil {
 			return &errors.PreflightError{
 				Status: 500,
-				InternalMessage: "persistence.Persister.InitializeNode: " +
+				InternalMessage: "persistence.Persister.RegisterNode: " +
 					"error writing secret file: \n\t" + err.Error(),
-				ExternalMessage: "There was an error initializing the node.",
+				ExternalMessage: "There was an error registering the node.",
 			}
 		}
 	} else if err != nil {
 		return &errors.PreflightError{
 			Status: 500,
-			InternalMessage: "persistence.Persister.InitializeNode: " +
+			InternalMessage: "persistence.Persister.RegisterNode: " +
 				"error writing secret file: \n\t" + err.Error(),
-			ExternalMessage: "There was an error initializing the node.",
+			ExternalMessage: "There was an error registering the node.",
 		}
 	}
 
@@ -133,7 +133,7 @@ func (p Persister) InitializeNode(secretFile string) *errors.PreflightError {
 	if err != nil {
 		return &errors.PreflightError{
 			Status: 500,
-			InternalMessage: "persistence.Persister.InitializeNode: " +
+			InternalMessage: "persistence.Persister.RegisterNode: " +
 				"error adding node to db: \n\t" + err.Error(),
 			ExternalMessage: "There was an error adding the node to the database.",
 		}

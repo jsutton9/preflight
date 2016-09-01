@@ -2,7 +2,7 @@ import api_client
 
 c = api_client.Client("https://localhost")
 
-#print c.add_user("api-test2@foo.bar", "pass")
+print c.add_user("api-test3@foo.bar", "pass")
 
 print c.authorize("api-test2@foo.bar", "pass", {"checklistRead": True, "checklistWrite": True, "checklistInvoke": True, "GeneralRead": True, "GeneralWrite": True})
 

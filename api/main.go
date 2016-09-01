@@ -61,7 +61,20 @@ func main() {
 func handleUsers(w http.ResponseWriter, r *http.Request, settings *persistence.ServerSettings, logger *persistence.LoggerCloser, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
 
-	//TODO: verify server token
+	secret, pErr := getToken(r)
+	if pErr != nil {
+		pErr = pErr.Prepend("api.handleUsers: error getting token: ")
+		logger.Println(pErr.Error())
+		pErr.WriteResponse(w)
+		return
+	}
+	pErr = commands.ValidateNodeSecret(secret, persister)
+	if pErr != nil {
+		pErr = pErr.Prepend("api.handleUsers: error validating node secret: ")
+		logger.Println(pErr.Error())
+		pErr.WriteResponse(w)
+		return
+	}
 
 	if strings.EqualFold(r.Method, "POST") && len(pathWords) == 1 {
 		body, pErr := readBody(r, 1000)

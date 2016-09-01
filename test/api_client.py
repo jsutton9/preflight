@@ -7,12 +7,11 @@ class Client:
         self.target = target
         self.verify = verify
         self.token = ""
+        with open("/etc/preflight/secret", "r") as f:
+            self.node_secret = f.read().strip()
 
     def add_user(self, email, password):
-        token = "wrong-token"
-        #with open("~/preflight/secret", "r") as f:
-        #    token = f.read().strip()
-        url = self.target + "/users?token=" + token
+        url = self.target + "/users?token=" + self.node_secret
         body = {"email": email, "password": password}
         response = requests.post(url, json.dumps(body), verify=self.verify)
         response.raise_for_status()
