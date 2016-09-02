@@ -101,24 +101,10 @@ func handleUsers(w http.ResponseWriter, r *http.Request, settings *persistence.S
 
 func handleChecklists(w http.ResponseWriter, r *http.Request, settings *persistence.ServerSettings, logger *persistence.LoggerCloser, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
-	secret, err := getToken(r)
-	if err != nil {
-		err = err.Prepend("api.handleChecklists: error getting token: ")
-		logger.Println(err.Error())
-		err.WriteResponse(w)
-		return
-	}
-	id, err := commands.GetUserIdFromToken(secret, persister)
-	if err != nil {
-		err = err.Prepend("api.handleChecklists: error getting id: ")
-		logger.Println(err.Error())
-		err.WriteResponse(w)
-		return
-	}
 
 	if strings.EqualFold(r.Method, "GET") && len(pathWords) == 1 {
 		permissions := security.PermissionFlags{ChecklistRead: true}
-		err = commands.ValidateToken(id, secret, permissions, persister)
+		id, err := validate(r, permissions, false, persister)
 		if err != nil {
 			err.Prepend("api.handleChecklists: error validating token: ")
 			logger.Println(err.Error())
@@ -137,7 +123,7 @@ func handleChecklists(w http.ResponseWriter, r *http.Request, settings *persiste
 		w.Write([]byte(checklistsString))
 	} else if strings.EqualFold(r.Method, "GET") && len(pathWords) == 2 {
 		permissions := security.PermissionFlags{ChecklistRead: true}
-		err = commands.ValidateToken(id, secret, permissions, persister)
+		id, err := validate(r, permissions, false, persister)
 		if err != nil {
 			err.Prepend("api.handleChecklists: error validating token: ")
 			logger.Println(err.Error())
@@ -157,7 +143,7 @@ func handleChecklists(w http.ResponseWriter, r *http.Request, settings *persiste
 		w.Write([]byte(checklistString))
 	} else if strings.EqualFold(r.Method, "POST") && len(pathWords) == 1 {
 		permissions := security.PermissionFlags{ChecklistWrite: true}
-		err = commands.ValidateToken(id, secret, permissions, persister)
+		id, err := validate(r, permissions, false, persister)
 		if err != nil {
 			err.Prepend("api.handleChecklists: error validating token: ")
 			logger.Println(err.Error())
@@ -186,7 +172,7 @@ func handleChecklists(w http.ResponseWriter, r *http.Request, settings *persiste
 	} else if strings.EqualFold(r.Method, "POST") && len(pathWords) == 3 &&
 			strings.EqualFold(pathWords[2], "invoke") {
 		permissions := security.PermissionFlags{ChecklistInvoke: true}
-		err = commands.ValidateToken(id, secret, permissions, persister)
+		id, err := validate(r, permissions, false, persister)
 		if err != nil {
 			err.Prepend("api.handleChecklists: error validating token: ")
 			logger.Println(err.Error())
@@ -206,7 +192,7 @@ func handleChecklists(w http.ResponseWriter, r *http.Request, settings *persiste
 		w.WriteHeader(204)
 	} else if strings.EqualFold(r.Method, "PUT") && len(pathWords) == 2 {
 		permissions := security.PermissionFlags{ChecklistWrite: true}
-		err = commands.ValidateToken(id, secret, permissions, persister)
+		id, err := validate(r, permissions, false, persister)
 		if err != nil {
 			err.Prepend("api.handleChecklists: error validating token: ")
 			logger.Println(err.Error())
@@ -232,7 +218,7 @@ func handleChecklists(w http.ResponseWriter, r *http.Request, settings *persiste
 		w.WriteHeader(204)
 	} else if strings.EqualFold(r.Method, "DELETE") && len(pathWords) == 2 {
 		permissions := security.PermissionFlags{ChecklistWrite: true}
-		err = commands.ValidateToken(id, secret, permissions, persister)
+		id, err := validate(r, permissions, false, persister)
 		if err != nil {
 			err.Prepend("api.handleChecklists: error validating token: ")
 			logger.Println(err.Error())
@@ -312,24 +298,10 @@ func handleTokens(w http.ResponseWriter, r *http.Request, settings *persistence.
 
 func handleSettings(w http.ResponseWriter, r *http.Request, settings *persistence.ServerSettings, logger *persistence.LoggerCloser, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
-	secret, err := getToken(r)
-	if err != nil {
-		err = err.Prepend("api.handleSettings: error getting token: ")
-		logger.Println(err.Error())
-		err.WriteResponse(w)
-		return
-	}
-	id, err := commands.GetUserIdFromToken(secret, persister)
-	if err != nil {
-		err = err.Prepend("api.handleSettings: error getting id: ")
-		logger.Println(err.Error())
-		err.WriteResponse(w)
-		return
-	}
 
 	if strings.EqualFold(r.Method, "GET") && len(pathWords) == 1 {
 		permissions := security.PermissionFlags{GeneralRead: true}
-		err = commands.ValidateToken(id, secret, permissions, persister)
+		id, err := validate(r, permissions, false, persister)
 		if err != nil {
 			err.Prepend("api.handleSettings: error validating token: ")
 			logger.Println(err.Error())
@@ -348,7 +320,7 @@ func handleSettings(w http.ResponseWriter, r *http.Request, settings *persistenc
 		w.Write([]byte(settingsString))
 	} else if strings.EqualFold(r.Method, "PUT") && len(pathWords) == 2 {
 		permissions := security.PermissionFlags{GeneralWrite: true}
-		err = commands.ValidateToken(id, secret, permissions, persister)
+		id, err := validate(r, permissions, false, persister)
 		if err != nil {
 			err.Prepend("api.handleSettings: error validating token: ")
 			logger.Println(err.Error())
@@ -426,6 +398,36 @@ func getToken(r *http.Request) (string, *errors.PreflightError) {
 	}
 
 	return secret, nil
+}
+
+func validate(r *http.Request, permissions security.PermissionFlags, nodeOnly bool, persister *persistence.Persister) (string, *errors.PreflightError) {
+	query := r.URL.Query()
+	clientToken := query.Get("token")
+	nodeSecret := query.Get("nodeSecret")
+	userId := query.Get("user")
+	if nodeSecret != "" {
+		err := commands.ValidateNodeSecret(clientToken, persister)
+		if err != nil {
+			err.Prepend("api.validate: error validating node secret: ")
+		}
+		return userId, err
+	} else if clientToken != "" && !nodeOnly {
+		userId, err := commands.GetUserIdFromToken(clientToken, persister)
+		if err != nil {
+			return "", err.Prepend("api.validate: error getting id: ")
+		}
+		err = commands.ValidateToken(userId, clientToken, permissions, persister)
+		if err != nil {
+			err.Prepend("api.validate: error validating token: ")
+		}
+		return userId, err
+	} else {
+		return "", &errors.PreflightError{
+			Status: 401,
+			InternalMessage: "api.validate: no token",
+			ExternalMessage: "A security token is required.",
+		}
+	}
 }
 
 func encloseHandler(f func(http.ResponseWriter, *http.Request, *persistence.ServerSettings, *persistence.LoggerCloser, *persistence.Persister), settings *persistence.ServerSettings, logger *persistence.LoggerCloser, persister *persistence.Persister) func(http.ResponseWriter, *http.Request) {
