@@ -11,11 +11,16 @@ class Client:
             self.node_secret = f.read().strip()
 
     def add_user(self, email, password):
-        url = self.target + "/users?token=" + self.node_secret
+        url = self.target + "/users?nodeSecret=" + self.node_secret
         body = {"email": email, "password": password}
         response = requests.post(url, json.dumps(body), verify=self.verify)
         response.raise_for_status()
         return response.content
+
+    def delete_user(self, userId):
+        url = self.target + "/users/%s?nodeSecret=%s" % (userId, self.node_secret)
+        response = requests.delete(url, verify=self.verify)
+        response.raise_for_status()
 
     def authorize(self, email, password, permissions):
         req = {"permissions": permissions, 

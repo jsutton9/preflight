@@ -66,6 +66,20 @@ func AddUser(userReqString string, persister *persistence.Persister) (string, *e
 	return user.GetId(), nil
 }
 
+func DeleteUser(id string, persister *persistence.Persister) *errors.PreflightError {
+	user, err := persister.GetUser(id)
+	if err != nil {
+		return err.Prepend("commands.DeleteUser: error getting user: ")
+	}
+
+	err = persister.DeleteUser(user)
+	if err != nil {
+		return err.Prepend("commands.DeleteUser: error deleting user: ")
+	}
+
+	return nil
+}
+
 func GetUserIdFromEmail(email string, persister *persistence.Persister) (string, *errors.PreflightError) {
 	user, err := persister.GetUserByEmail(email)
 	if err != nil {

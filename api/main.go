@@ -61,39 +61,41 @@ func main() {
 func handleUsers(w http.ResponseWriter, r *http.Request, settings *persistence.ServerSettings, logger *persistence.LoggerCloser, persister *persistence.Persister) {
 	pathWords := getPathWords(r)
 
-	secret, pErr := getToken(r)
-	if pErr != nil {
-		pErr = pErr.Prepend("api.handleUsers: error getting token: ")
-		logger.Println(pErr.Error())
-		pErr.WriteResponse(w)
-		return
-	}
-	pErr = commands.ValidateNodeSecret(secret, persister)
-	if pErr != nil {
-		pErr = pErr.Prepend("api.handleUsers: error validating node secret: ")
-		logger.Println(pErr.Error())
-		pErr.WriteResponse(w)
+	_, err := validate(r, security.PermissionFlags{}, true, persister)
+	if err != nil {
+		err.Prepend("api.handleUsers: error validating request: ")
+		logger.Println(err.Error())
+		err.WriteResponse(w)
 		return
 	}
 
 	if strings.EqualFold(r.Method, "POST") && len(pathWords) == 1 {
-		body, pErr := readBody(r, 1000)
-		if pErr != nil {
-			logger.Println(pErr.Error())
-			pErr.WriteResponse(w)
+		body, err := readBody(r, 1000)
+		if err != nil {
+			err.Prepend("api.handleUsers: error reading body: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
 			return
 		}
-		id, pErr := commands.AddUser(body, persister)
-		if pErr != nil {
-			logger.Println(pErr.Error())
-			pErr.WriteResponse(w)
+		id, err := commands.AddUser(body, persister)
+		if err != nil {
+			err.Prepend("api.handleUsers: error adding user: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
 			return
 		}
 		w.WriteHeader(201)
 		w.Write([]byte(id))
-	//} else if strings.EqualFold(r.Method, "DELETE") && len(pathWords) == 2 {
-	//	id := pathWords[1]
-	//	TODO
+	} else if strings.EqualFold(r.Method, "DELETE") && len(pathWords) == 2 {
+		id := pathWords[1]
+		err = commands.DeleteUser(id, persister)
+		if err != nil {
+			err.Prepend("api.handleUsers: error deleting user: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+		w.WriteHeader(204)
 	} else {
 		w.WriteHeader(404)
 	}
@@ -406,7 +408,7 @@ func validate(r *http.Request, permissions security.PermissionFlags, nodeOnly bo
 	nodeSecret := query.Get("nodeSecret")
 	userId := query.Get("user")
 	if nodeSecret != "" {
-		err := commands.ValidateNodeSecret(clientToken, persister)
+		err := commands.ValidateNodeSecret(nodeSecret, persister)
 		if err != nil {
 			err.Prepend("api.validate: error validating node secret: ")
 		}

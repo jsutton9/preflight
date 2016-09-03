@@ -219,6 +219,20 @@ func (p Persister) UpdateUser(user *User) *errors.PreflightError {
 	return nil
 }
 
+func (p Persister) DeleteUser(user *User) *errors.PreflightError {
+	err := p.UserCollection.Remove(bson.M{"_id": user.Id})
+	if err != nil {
+		return &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "persistence.Persister.DeleteUser: " +
+				"error removing user:\n\t" + err.Error(),
+			ExternalMessage: "There was an error removing the user from the database.",
+		}
+	}
+
+	return nil
+}
+
 func (p Persister) GetUser(id string) (*User, *errors.PreflightError) {
 	user := &User{}
 	err := p.UserCollection.FindId(bson.ObjectIdHex(id)).One(user)

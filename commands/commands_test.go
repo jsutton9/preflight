@@ -76,6 +76,13 @@ func TestUserCommands(t *testing.T) {
 	oldPasswordValidAfter := ValidatePassword(id, oldPassword, persister)
 	newPasswordValidAfter := ValidatePassword(id, newPassword, persister)
 
+	pErr = DeleteUser(id, persister)
+	if pErr != nil {
+		t.Log("error deleting user: " +
+			"\n\t" + pErr.Error())
+		t.Fail()
+	}
+
 	if idEmail != id {
 		t.Logf("incorrect id from GetUserIdFromEmail: " +
 			"\n\t expected %s, got %s", id, idEmail)
@@ -152,7 +159,7 @@ func TestChecklistCommands(t *testing.T) {
 	checklistIn2String := string(checklistIn2Bytes[:])
 
 	// execute checklist commands
-	pErr = AddChecklist(id, checklistReqString, persister)
+	_, pErr = AddChecklist(id, checklistReqString, persister)
 	if pErr != nil {
 		t.Fatal(pErr)
 	}

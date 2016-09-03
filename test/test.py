@@ -1,3 +1,5 @@
+import random
+
 import requests
 
 import api_client
@@ -5,9 +7,11 @@ import api_client
 c = api_client.Client("https://localhost")
 
 try:
-    #print c.add_user("api-test3@foo.bar", "pass")
+    email = "api-test%d@foo.bar" % random.randint(1, 9999)
+    userId = c.add_user(email, "pass")
+    print userId
 
-    print c.authorize("api-test2@foo.bar", "pass", {"checklistRead": True, "checklistWrite": True, "checklistInvoke": True, "GeneralRead": True, "GeneralWrite": True})
+    #print c.authorize("api-test2@foo.bar", "pass", {"checklistRead": True, "checklistWrite": True, "checklistInvoke": True, "generalRead": True, "generalWrite": True})
     #print c.authorize("api-test2@foo.bar", "pass", {"checklistInvoke": True})
 
     #print c.delete_checklist("bar")
@@ -17,8 +21,10 @@ try:
 
     #c.invoke_checklist("bar")
 
-    c.update_global_setting("timezone", "America/Denver")
-    print c.get_global_settings()
+    #c.update_global_setting("timezone", "America/Denver")
+    #print c.get_global_settings()
+
+    print c.delete_user(userId)
 
 except requests.exceptions.HTTPError as e:
     print ""

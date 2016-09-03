@@ -125,6 +125,32 @@ func TestUpdateUser(t *testing.T) {
 	}
 }
 
+func TestDeleteUser(t *testing.T) {
+	rand.Seed(time.Now().UnixNano())
+	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
+	password := "password"
+
+	p, err := New("localhost", "preflight-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, err := p.AddUser(email, password)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = p.DeleteUser(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.GetUser(user.GetId())
+	if err == nil {
+		t.Logf("user not deleted: expected error on GetUser, got nil")
+		t.Fail()
+	}
+}
+
 func TestNoDuplicateEmails(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 	email := fmt.Sprintf("testuser-%d@preflight.com", rand.Int())
