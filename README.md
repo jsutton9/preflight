@@ -3,7 +3,7 @@ Preflight is a checklist manager which integrates with Todoist. It will take a l
 
 ## Installation
 1. Install go and set GOPATH.
-2. Download source with `go get github.com/jsutton9/preflight`.
+2. Download source with `go get github.com/jsutton9/preflight`
 3. Build executable
   - for cli: `go build -o preflight github.com/jsutton9/preflight/cli`
   - for api: `go build -o preflight-api github.com/jsutton9/preflight/api`
@@ -48,7 +48,7 @@ Currently supported API calls:
   - authentication: node secret
 - GET /checklists
   - authentication: checklistRead
-  - response body: json list of checklists, see Checklists section
+  - response body: json list of checklists (see Checklists section)
 - GET /checklists/{checklist-id}
   - authentication: checklistRead
   - response body: json checklist (see Checklists section)
@@ -66,7 +66,7 @@ Currently supported API calls:
   - authentication: checklistWrite
 - GET /tokens
   - authentication: generalRead
-  - response body: json list of checklist objects (see Tokens section)
+  - response body: json list of checklist objects (see Tokens section), with secrets removed
 - POST /tokens
   - authentication: basic auth
   - body: `{"permissions": $PERMISSIONS, "expiryHours": $HOURS_UNTIL_EXPIRATION, "description": $DESCRIPTION_STRING}`
