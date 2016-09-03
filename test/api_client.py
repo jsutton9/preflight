@@ -87,3 +87,9 @@ class Client:
         url = self.target + "/force-update?token=" + self.token
         response = requests.post(url, "", verify=self.verify)
         response.raise_for_status()
+
+    def get_tokens(self):
+        url = self.target + "/tokens?token=" + self.token
+        response = requests.get(url, verify=self.verify)
+        response.raise_for_status()
+        return response.json()

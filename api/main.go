@@ -246,7 +246,25 @@ func handleTokens(w http.ResponseWriter, r *http.Request, settings *persistence.
 	pathWords := getPathWords(r)
 
 	if strings.EqualFold(r.Method, "GET") && len(pathWords) == 1 {
-		//TODO
+		permissions := security.PermissionFlags{GeneralRead: true}
+		id, err := validate(r, permissions, false, persister)
+		if err != nil {
+			err.Prepend("api.handleTokens: error validating token: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		tokensString, err := commands.GetTokens(id, persister)
+		if err != nil {
+			err.Prepend("api.handleTokens: error getting tokens: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		w.WriteHeader(200)
+		w.Write([]byte(tokensString))
 	} else if strings.EqualFold(r.Method, "POST") && len(pathWords) == 1 {
 		username, password, ok := r.BasicAuth()
 		if ! ok {

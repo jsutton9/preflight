@@ -11,7 +11,7 @@ try:
     userId = c.add_user(email, "pass")
     print userId
 
-    #print c.authorize("api-test2@foo.bar", "pass", {"checklistRead": True, "checklistWrite": True, "checklistInvoke": True, "generalRead": True, "generalWrite": True})
+    print c.authorize(email, "pass", {"checklistRead": True, "checklistWrite": True, "checklistInvoke": True, "generalRead": True, "generalWrite": True})
     #print c.authorize("api-test2@foo.bar", "pass", {"checklistInvoke": True})
 
     #print c.delete_checklist("bar")
@@ -23,6 +23,8 @@ try:
 
     #c.update_global_setting("timezone", "America/Denver")
     #print c.get_global_settings()
+
+    print c.get_tokens()
 
     print c.delete_user(userId)
 
