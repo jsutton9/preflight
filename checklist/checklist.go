@@ -1,7 +1,7 @@
 package checklist
 
 import (
-	"errors"
+	"github.com/jsutton9/preflight/api/errors"
 	"github.com/jsutton9/preflight/clients/trello"
 	"time"
 )
@@ -29,7 +29,7 @@ type UpdateRecord struct {
 	AddTime time.Time   `json:"addTime"`
 }
 
-func parseWeekday(s string) (time.Weekday, error) {
+func parseWeekday(s string) (time.Weekday, *errors.PreflightError) {
 	switch s {
 	case "Sunday", "sunday", "Sun", "sun":
 		return time.Sunday, nil
@@ -46,11 +46,15 @@ func parseWeekday(s string) (time.Weekday, error) {
 	case "Saturday", "saturday", "Sat", "sat":
 		return time.Saturday, nil
 	default:
-		return time.Sunday, errors.New("checklist.parseWeekday: unable to parse \"" + s + "\"")
+		return time.Sunday, &errors.PreflightError{
+			Status: 422,
+			InternalMessage: "checklist.parseWeekday: unable to parse \"" + s + "\"",
+			ExternalMessage: "day of week \"" + s + "\" not understood",
+		}
 	}
 }
 
-func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, error) {
+func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, *errors.PreflightError) {
 	if s == nil {
 		return 0, lastUpdate, nil
 	}
@@ -63,8 +67,7 @@ func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 		for _, weekdayString := range s.Days {
 			weekday, err := parseWeekday(weekdayString)
 			if err != nil {
-				return 0, lastUpdate, errors.New("checklist.Schedule.Action: " +
-					"error parsing weekday: \n\t" + err.Error())
+				return 0, lastUpdate, err.Prepend("checklist.Schedule.Action: error parsing weekday: ")
 			}
 			weekdayDelta := int(currentWeekday-weekday)
 			if weekdayDelta < 0 {
@@ -89,8 +92,12 @@ func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 
 	startTime, err := time.ParseInLocation("15:04", s.Start, location)
 	if err != nil {
-		return 0, lastUpdate, errors.New("checklist.Schedule.Action: error parsing start time " +
-			"\"" + s.Start + "\": \n\t" + err.Error())
+		return 0, lastUpdate, &errors.PreflightError{
+			Status: 422,
+			InternalMessage: "checklist.Schedule.Action: error parsing start time " +
+				"\"" + s.Start + "\": \n\t" + err.Error(),
+			ExternalMessage: "Unable to parse start time \"" + s.Start + "\"; should be like \"15:04\"",
+		}
 	}
 	lastStart := time.Date(y, m, d, startTime.Hour(), startTime.Minute(), 0, 0, location)
 	if scheduledToday && lastStart.After(now) {
@@ -101,8 +108,12 @@ func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 	if s.End != "" {
 		endTime, err := time.ParseInLocation("15:04", s.End, location)
 		if err != nil {
-			return 0, lastUpdate, errors.New("checklist.Schedule.Action: error parsing end time " +
-				"\"" + s.End + "\": \n\t" + err.Error())
+			return 0, lastUpdate, &errors.PreflightError{
+				Status: 422,
+				InternalMessage: "checklist.Schedule.Action: error parsing end time " +
+					"\"" + s.Start + "\": \n\t" + err.Error(),
+				ExternalMessage: "Unable to parse end time \"" + s.End + "\"; should be like \"15:04\"",
+			}
 		}
 		lastEnd = time.Date(y, m, d, endTime.Hour(), endTime.Minute(), 0, 0, location)
 		if scheduledToday && lastEnd.After(now) {
@@ -126,10 +137,10 @@ func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 /*
  * returns 1 for add, -1 for delete, 0 for no action
  */
-func (c Checklist) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, error) {
+func (c Checklist) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, *errors.PreflightError) {
 	action, updateTime, err := c.Schedule.Action(lastAdd, lastUpdate, now)
 	if err != nil {
-		err = errors.New("checklist.Checklist.Action: error: \n\t" + err.Error())
+		err.Prepend("checklist.Checklist.Action: error: ")
 	}
 	return action, updateTime, err
 }

@@ -22,6 +22,7 @@ func main() {
 	usage += "\tpreflight set-trello-token EMAIL TOKEN\n"
 	usage += "\tpreflight get-general-settings EMAIL\n"
 	usage += "\tpreflight set-general-setting EMAIL SETTING VALUE\n"
+	usage += "\tpreflight register-node CONFIG_FILE\n"
 
 	logger := log.New(os.Stderr, "", log.Ldate | log.Ltime)
 	if len(os.Args) < 2 {
@@ -33,17 +34,15 @@ func main() {
 		}
 		persister, err := persistence.New("localhost", "users")
 		if err != nil {
-			logger.Println("main: error getting persister: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
 		}
 		email := os.Args[2]
 		password := os.Args[3]
-		// TODO: golang.org/x/crypto/ssh/terminal ReadPassword
-		id, err := commands.AddUser(email, password, persister)
+		userReq := fmt.Sprintf("{\"email\":\"%s\",\"password\":\"%s\"}", email, password)
+		id, err := commands.AddUser(userReq, persister)
 		if err != nil {
-			logger.Println("main: error adding user: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error adding user: ").Error())
 			return
 		}
 		fmt.Println("id: " + id)
@@ -56,20 +55,17 @@ func main() {
 		trelloKey := os.Args[3]
 		persister, err := persistence.New("localhost", "users")
 		if err != nil {
-			logger.Println("main: error getting persister: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
 		}
 		id, err := commands.GetUserIdFromEmail(email, persister)
 		if err != nil {
-			logger.Println("main: error getting user id: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting user id: ").Error())
 			return
 		}
 		err = commands.Update(id, trelloKey, persister)
 		if err != nil {
-			logger.Println("main: error updating: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error updating: ").Error())
 			return
 		}
 	} else if os.Args[1] == "invoke" {
@@ -82,20 +78,17 @@ func main() {
 		trelloKey := os.Args[4]
 		persister, err := persistence.New("localhost", "users")
 		if err != nil {
-			logger.Println("main: error getting persister: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
 		}
 		id, err := commands.GetUserIdFromEmail(email, persister)
 		if err != nil {
-			logger.Println("main: error getting user id: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting user id: ").Error())
 			return
 		}
 		err = commands.Invoke(id, name, trelloKey, persister)
 		if err != nil {
-			logger.Println("main: error invoking \"" + name + "\": " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error invoking \"").Error())
 			return
 		}
 	} else if os.Args[1] == "get-checklists" {
@@ -106,20 +99,17 @@ func main() {
 		email := os.Args[2]
 		persister, err := persistence.New("localhost", "users")
 		if err != nil {
-			logger.Println("main: error getting persister: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
 		}
 		id, err := commands.GetUserIdFromEmail(email, persister)
 		if err != nil {
-			logger.Println("main: error getting user id: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting user id: ").Error())
 			return
 		}
 		checklistsString, err := commands.GetChecklistsString(id, persister)
 		if err != nil {
-			logger.Println("main: error getting checklists: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting checklists: ").Error())
 			return
 		}
 		fmt.Println(checklistsString)
@@ -133,27 +123,24 @@ func main() {
 		filename := os.Args[4]
 		persister, err := persistence.New("localhost", "users")
 		if err != nil {
-			logger.Println("main: error getting persister: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
 		}
 		id, err := commands.GetUserIdFromEmail(email, persister)
 		if err != nil {
-			logger.Println("main: error getting user id: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting user id: ").Error())
 			return
 		}
-		checklistBytes, err := ioutil.ReadFile(filename)
-		if err != nil {
-			logger.Println("main: error reading file \"" + filename + "\": " +
-				"\n\t" + err.Error())
+		checklistBytes, goErr := ioutil.ReadFile(filename)
+		if goErr != nil {
+			logger.Println("main: error reading file \"" + filename +
+				"\": \n\t" + goErr.Error())
 			return
 		}
 		checklistReq := fmt.Sprintf("{\"name\":\"%s\",\"checklist\":%s}", name, string(checklistBytes))
-		err = commands.AddChecklist(id, checklistReq, persister)
+		_, err = commands.AddChecklist(id, checklistReq, persister)
 		if err != nil {
-			logger.Println("main: error adding checklist: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error adding checklist: ").Error())
 			return
 		}
 	} else if os.Args[1] == "update-checklist" {
@@ -166,26 +153,23 @@ func main() {
 		filename := os.Args[4]
 		persister, err := persistence.New("localhost", "users")
 		if err != nil {
-			logger.Println("main: error getting persister: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
 		}
 		id, err := commands.GetUserIdFromEmail(email, persister)
 		if err != nil {
-			logger.Println("main: error getting user id: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting user id: ").Error())
 			return
 		}
-		checklistBytes, err := ioutil.ReadFile(filename)
-		if err != nil {
-			logger.Println("main: error reading file \"" + filename + "\": " +
-				"\n\t" + err.Error())
+		checklistBytes, goErr := ioutil.ReadFile(filename)
+		if goErr != nil {
+			logger.Println("main: error reading file \"" + filename +
+				"\": \n\t" + goErr.Error())
 			return
 		}
 		err = commands.UpdateChecklist(id, name, string(checklistBytes), persister)
 		if err != nil {
-			logger.Println("main: error updating checklist: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error updating checklist: ").Error())
 			return
 		}
 	} else if os.Args[1] == "delete-checklist" {
@@ -197,20 +181,17 @@ func main() {
 		name := os.Args[3]
 		persister, err := persistence.New("localhost", "users")
 		if err != nil {
-			logger.Println("main: error getting persister: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
 		}
 		id, err := commands.GetUserIdFromEmail(email, persister)
 		if err != nil {
-			logger.Println("main: error getting user id: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting user id: ").Error())
 			return
 		}
 		err = commands.DeleteChecklist(id, name, persister)
 		if err != nil {
-			logger.Println("main: error deleting checklist: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error deleting checklist: ").Error())
 			return
 		}
 	} else if os.Args[1] == "set-todoist-token" {
@@ -222,20 +203,17 @@ func main() {
 		token := os.Args[3]
 		persister, err := persistence.New("localhost", "users")
 		if err != nil {
-			logger.Println("main: error getting persister: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
 		}
 		id, err := commands.GetUserIdFromEmail(email, persister)
 		if err != nil {
-			logger.Println("main: error getting user id: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting user id: ").Error())
 			return
 		}
 		err = commands.SetTodoistToken(id, token, persister)
 		if err != nil {
-			logger.Println("main: error setting todoist token: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error setting todoist token: ").Error())
 			return
 		}
 	} else if os.Args[1] == "set-trello-token" {
@@ -247,20 +225,17 @@ func main() {
 		token := os.Args[3]
 		persister, err := persistence.New("localhost", "users")
 		if err != nil {
-			logger.Println("main: error getting persister: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
 		}
 		id, err := commands.GetUserIdFromEmail(email, persister)
 		if err != nil {
-			logger.Println("main: error getting user id: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting user id: ").Error())
 			return
 		}
 		err = commands.SetTrelloToken(id, token, persister)
 		if err != nil {
-			logger.Println("main: error setting trello token: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error setting trello token: ").Error())
 			return
 		}
 	} else if os.Args[1] == "get-general-settings" {
@@ -271,20 +246,17 @@ func main() {
 		email := os.Args[2]
 		persister, err := persistence.New("localhost", "users")
 		if err != nil {
-			logger.Println("main: error getting persister: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
 		}
 		id, err := commands.GetUserIdFromEmail(email, persister)
 		if err != nil {
-			logger.Println("main: error getting user id: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting user id: ").Error())
 			return
 		}
 		settings, err := commands.GetGeneralSettings(id, persister)
 		if err != nil {
-			logger.Println("main: error getting settings: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting settings: ").Error())
 			return
 		}
 		fmt.Println(settings)
@@ -298,20 +270,38 @@ func main() {
 		value := os.Args[4]
 		persister, err := persistence.New("localhost", "users")
 		if err != nil {
-			logger.Println("main: error getting persister: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
 		}
 		id, err := commands.GetUserIdFromEmail(email, persister)
 		if err != nil {
-			logger.Println("main: error getting user id: " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error getting user id: ").Error())
 			return
 		}
 		err = commands.SetGeneralSetting(id, setting, value, persister)
 		if err != nil {
-			logger.Println("main: error setting \"" + setting + "\": " +
-				"\n\t" + err.Error())
+			logger.Println(err.Prepend("main: error setting \"" +setting + "\": ").Error())
+			return
+		}
+	} else if os.Args[1] == "register-node" {
+		if len(os.Args) != 3 {
+			logger.Println(usage)
+			return
+		}
+		configFile := os.Args[2]
+		settings, err := persistence.GetServerSettings(configFile)
+		if err != nil {
+			logger.Println(err.Prepend("main: error loading server settings: ").Error())
+			return
+		}
+		persister, err := persistence.New(settings.DatabaseServer, settings.DatabaseUsersCollection)
+		if err != nil {
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
+			return
+		}
+		err = persister.RegisterNode(settings.SecretFile)
+		if err != nil {
+			logger.Println(err.Prepend("main: error registering node: ").Error())
 			return
 		}
 	} else {
