@@ -310,7 +310,25 @@ func handleTokens(w http.ResponseWriter, r *http.Request, settings *persistence.
 		w.WriteHeader(201)
 		w.Write([]byte(tokenString))
 	} else if strings.EqualFold(r.Method, "DELETE") && len(pathWords) == 2 {
-		//TODO
+		permissions := security.PermissionFlags{GeneralWrite: true}
+		id, err := validate(r, permissions, false, persister)
+		if err != nil {
+			err = err.Prepend("api.handleTokens: error validating token: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		tokenId := pathWords[1]
+		err = commands.DeleteToken(id, tokenId, persister)
+		if err != nil {
+			err = err.Prepend("api.handleTokens: error deleting token: ")
+			logger.Println(err.Error())
+			err.WriteResponse(w)
+			return
+		}
+
+		w.WriteHeader(204)
 	} else {
 		w.WriteHeader(404)
 	}

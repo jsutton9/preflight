@@ -24,6 +24,13 @@ try:
     #c.update_global_setting("timezone", "America/Denver")
     #print c.get_global_settings()
 
+    print c.add_token({"checklistInvoke": True})
+
+    tokens = c.get_tokens()
+    print tokens
+    token_id = tokens[1]["id"]
+
+    print c.delete_token(token_id)
     print c.get_tokens()
 
     print c.delete_user(userId)

@@ -7,6 +7,8 @@ class Client:
         self.target = target
         self.verify = verify
         self.token = ""
+        self.email = ""
+        self.password = ""
         with open("/etc/preflight/secret", "r") as f:
             self.node_secret = f.read().strip()
 
@@ -23,13 +25,10 @@ class Client:
         response.raise_for_status()
 
     def authorize(self, email, password, permissions):
-        req = {"permissions": permissions, 
-                "expiryHours": 24, 
-                "description": "api test client"}
-        url = self.target + "/tokens"
-        response = requests.post(url, json.dumps(req), auth=(email, password), verify=self.verify)
-        response.raise_for_status()
-        self.token = response.json()["secret"]
+        self.email = email
+        self.password = password
+        token = self.add_token(permissions)
+        self.token = token["secret"]
         return self.token
 
     def change_password(self, newPassword):
@@ -93,3 +92,17 @@ class Client:
         response = requests.get(url, verify=self.verify)
         response.raise_for_status()
         return response.json()
+
+    def add_token(self, permissions):
+        req = {"permissions": permissions,
+                "expiryHours": 24,
+                "description": "api test client"}
+        url = self.target + "/tokens"
+        response = requests.post(url, json.dumps(req), auth=(self.email, self.password), verify=self.verify)
+        response.raise_for_status()
+        return response.json()
+
+    def delete_token(self, token_id):
+        url = self.target + "/tokens/%s?token=%s" % (token_id, self.token)
+        response = requests.delete(url, verify=self.verify)
+        response.raise_for_status()
