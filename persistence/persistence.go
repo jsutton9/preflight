@@ -294,6 +294,7 @@ func GetServerSettings(filename string) (*ServerSettings, *errors.PreflightError
 		ErrLog: "",
 		DatabaseServer: "localhost",
 		DatabaseUsersCollection: "users",
+		SecretFile: "/etc/preflight/secret",
 	}
 	err = json.Unmarshal(contents, settings)
 	if err != nil {
