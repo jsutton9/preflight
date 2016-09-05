@@ -23,6 +23,7 @@ type board struct {
 type card struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
+	Closed bool `json:"closed"`
 }
 
 type list struct {
@@ -111,7 +112,7 @@ func (c Client) boardId(boardName string) (string, *errors.PreflightError) {
 }
 
 func (c Client) cardNames(boardId, listName string) ([]string, *errors.PreflightError) {
-	body, pErr := c.get("boards/" + boardId + "/lists?fields=name&cards=all&card_fields=name")
+	body, pErr := c.get("boards/" + boardId + "/lists?fields=name&cards=all&card_fields=name,closed")
 	if pErr != nil {
 		return nil, pErr.Prepend("trello.Client.cardNames: error getting lists: ")
 	}
@@ -129,9 +130,11 @@ func (c Client) cardNames(boardId, listName string) ([]string, *errors.Preflight
 
 	for _, l := range lists {
 		if l.Name == listName {
-			tasks := make([]string, len(l.Cards))
-			for i, c := range l.Cards {
-				tasks[i] = c.Name
+			tasks := make([]string, 0, len(l.Cards))
+			for _, c := range l.Cards {
+				if ! c.Closed {
+					tasks = append(tasks, c.Name)
+				}
 			}
 			return tasks, nil
 		}

@@ -3,13 +3,13 @@ import json
 import requests
 
 class Client:
-    def __init__(self, target, verify=False):
+    def __init__(self, target, verify=False, secret_file="/etc/preflight/secret"):
         self.target = target
         self.verify = verify
         self.token = ""
         self.email = ""
         self.password = ""
-        with open("/etc/preflight/secret", "r") as f:
+        with open(secret_file, "r") as f:
             self.node_secret = f.read().strip()
 
     def add_user(self, email, password):
