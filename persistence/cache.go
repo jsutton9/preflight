@@ -2,6 +2,8 @@ package persistence
 
 type ReadRequest struct {
 	Id string
+	Email string
+	TokenSecret string
 	ResponseChannel chan *User
 }
 
@@ -11,19 +13,39 @@ type WriteRequest struct {
 }
 
 func UserCache(readChannel chan *ReadRequest, writeChannel chan *WriteRequest) {
-	users := make(map[string]*User)
+	byId := make(map[string]*User)
+	byEmail := make(map[string]*User)
+	byToken := make(map[string]*User)
 	var read *ReadRequest
 	var write *WriteRequest
 	for {
 		select {
 		case write = <-writeChannel:
-			if write.Remove {
-				delete(users, write.User.GetId())
-			} else {
-				users[write.User.GetId()] = write.User
+			u := write.User
+			cached := byId[u.GetId()]
+			if cached != nil {
+				delete(byId, cached.GetId())
+				delete(byEmail, cached.Email)
+				for _, token := range cached.Security.Tokens {
+					delete(byToken, token.Secret)
+				}
+			}
+			if ! write.Remove {
+				byId[u.GetId()] = u
+				byEmail[u.Email] = u
+				for _, token := range u.Security.Tokens {
+					byToken[token.Secret] = u
+				}
 			}
 		case read = <-readChannel:
-			u, _ := users[read.Id]
+			var u *User
+			if read.Id != "" {
+				u, _ = byId[read.Id]
+			} else if read.Email != "" {
+				u, _ = byEmail[read.Email]
+			} else if read.TokenSecret != "" {
+				u, _ = byToken[read.TokenSecret]
+			}
 			read.ResponseChannel <- u
 		}
 	}

@@ -30,6 +30,8 @@ type Persister struct {
 	databaseName string
 	UserCollection *mgo.Collection
 	NodeCollection *mgo.Collection
+	UserCacheReadChannel chan *ReadRequest
+	UserCacheWriteChannel chan *WriteRequest
 }
 
 type ServerSettings struct {
@@ -71,11 +73,17 @@ func New(url, database string) (*Persister, *errors.PreflightError) {
 	userCollection := session.DB(database).C("users")
 	nodeCollection := session.DB(database).C("nodes")
 
+	readChannel := make(chan *ReadRequest)
+	writeChannel := make(chan *WriteRequest)
+	go UserCache(readChannel, writeChannel)
+
 	p := Persister{
 		Session: session,
 		databaseName: database,
 		UserCollection: userCollection,
 		NodeCollection: nodeCollection,
+		UserCacheReadChannel: readChannel,
+		UserCacheWriteChannel: writeChannel,
 	}
 
 	return &p, nil

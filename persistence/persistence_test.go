@@ -301,3 +301,69 @@ func TestCache(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestCacheByToken(t *testing.T) {
+	p, err := New("localhost", "preflight-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	email := "before@preflight.com"
+	userWriteBefore, err := p.GetUserByEmail(email)
+	if err != nil {
+		if err.Status == 404 {
+			userWriteBefore, err = p.AddUser(email, "pass")
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+
+	userWriteBefore.Security, err = security.New("pass")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := userWriteBefore.Security.AddToken(security.PermissionFlags{}, 1, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	secretBefore := token.Secret
+	userWriteAfter := &User{Id: userWriteBefore.Id, Email: userWriteBefore.Email}
+	userWriteAfter.Security, err = security.New("pass")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err = userWriteAfter.Security.AddToken(security.PermissionFlags{}, 1, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	secretAfter := token.Secret
+
+	readChannel := make(chan *ReadRequest)
+	writeChannel := make(chan *WriteRequest)
+	responseChannel := make(chan *User)
+	go UserCache(readChannel, writeChannel)
+
+	writeChannel <- &WriteRequest{User: userWriteBefore}
+	readChannel <- &ReadRequest{TokenSecret: secretBefore, ResponseChannel: responseChannel}
+	userReadBefore := <-responseChannel
+	writeChannel <- &WriteRequest{User: userWriteAfter}
+	readChannel <- &ReadRequest{TokenSecret: secretBefore, ResponseChannel: responseChannel}
+	userReadOldToken := <-responseChannel
+	readChannel <- &ReadRequest{TokenSecret: secretAfter, ResponseChannel: responseChannel}
+	userReadNewToken := <-responseChannel
+
+	if userReadBefore == nil {
+		t.Log("initial get by token failed: got nil")
+		t.Fail()
+	}
+	if userReadOldToken != nil {
+		t.Log("get by old token failed: expected nil, got non-nil")
+		t.Fail()
+	}
+	if userReadNewToken == nil {
+		t.Log("get by updated token failed: got nil")
+		t.Fail()
+	}
+}
