@@ -102,6 +102,8 @@ func (p Persister) Copy() *Persister {
 		databaseName: p.databaseName,
 		UserCollection: userCollection,
 		NodeCollection: nodeCollection,
+		UserCacheReadChannel: p.UserCacheReadChannel,
+		UserCacheWriteChannel: p.UserCacheWriteChannel,
 	}
 }
 
@@ -214,6 +216,8 @@ func (p Persister) AddUser(email, password string) (*User, *errors.PreflightErro
 }
 
 func (p Persister) UpdateUser(user *User) *errors.PreflightError {
+	p.UserCacheWriteChannel <- &WriteRequest{User: user, OnlyIfCached: true}
+
 	err := p.UserCollection.Update(bson.M{"_id": user.Id}, user)
 	if err != nil {
 		return &errors.PreflightError{
@@ -228,6 +232,8 @@ func (p Persister) UpdateUser(user *User) *errors.PreflightError {
 }
 
 func (p Persister) DeleteUser(user *User) *errors.PreflightError {
+	p.UserCacheWriteChannel <- &WriteRequest{User: user, Remove: true}
+
 	err := p.UserCollection.Remove(bson.M{"_id": user.Id})
 	if err != nil {
 		return &errors.PreflightError{
@@ -242,7 +248,14 @@ func (p Persister) DeleteUser(user *User) *errors.PreflightError {
 }
 
 func (p Persister) GetUser(id string) (*User, *errors.PreflightError) {
-	user := &User{}
+	responseChannel := make(chan *User)
+	p.UserCacheReadChannel <- &ReadRequest{Id: id, ResponseChannel: responseChannel}
+	user := <-responseChannel
+	if user != nil {
+		return user, nil
+	}
+
+	user = &User{}
 	err := p.UserCollection.FindId(bson.ObjectIdHex(id)).One(user)
 	if err != nil {
 		return nil, &errors.PreflightError{
@@ -257,7 +270,14 @@ func (p Persister) GetUser(id string) (*User, *errors.PreflightError) {
 }
 
 func (p Persister) GetUserByEmail(email string) (*User, *errors.PreflightError) {
-	user := &User{}
+	responseChannel := make(chan *User)
+	p.UserCacheReadChannel <- &ReadRequest{Email: email, ResponseChannel: responseChannel}
+	user := <-responseChannel
+	if user != nil {
+		return user, nil
+	}
+
+	user = &User{}
 	err := p.UserCollection.Find(bson.M{"email": email}).One(user)
 	if err != nil {
 		return nil, &errors.PreflightError{
@@ -272,7 +292,14 @@ func (p Persister) GetUserByEmail(email string) (*User, *errors.PreflightError) 
 }
 
 func (p Persister) GetUserByToken(secret string) (*User, *errors.PreflightError) {
-	user := &User{}
+	responseChannel := make(chan *User)
+	p.UserCacheReadChannel <- &ReadRequest{TokenSecret: secret, ResponseChannel: responseChannel}
+	user := <-responseChannel
+	if user != nil {
+		return user, nil
+	}
+
+	user = &User{}
 	err := p.UserCollection.Find(bson.M{"security.tokens.secret": secret}).One(user)
 	if err != nil {
 		return nil, &errors.PreflightError{

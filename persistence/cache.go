@@ -10,6 +10,7 @@ type ReadRequest struct {
 type WriteRequest struct {
 	User *User
 	Remove bool
+	OnlyIfCached bool
 }
 
 func UserCache(readChannel chan *ReadRequest, writeChannel chan *WriteRequest) {
@@ -30,7 +31,7 @@ func UserCache(readChannel chan *ReadRequest, writeChannel chan *WriteRequest) {
 					delete(byToken, token.Secret)
 				}
 			}
-			if ! write.Remove {
+			if ! write.Remove && (! write.OnlyIfCached || cached != nil) {
 				byId[u.GetId()] = u
 				byEmail[u.Email] = u
 				for _, token := range u.Security.Tokens {
