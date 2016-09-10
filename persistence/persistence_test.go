@@ -247,3 +247,57 @@ func TestLogging(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestCache(t *testing.T) {
+	p, err := New("localhost", "preflight-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	emailWriteBefore := "before@preflight.com"
+	emailWriteAfter := "after@preflight.com"
+	userWrite, err := p.GetUserByEmail(emailWriteBefore)
+	if err != nil {
+		if err.Status == 404 {
+			userWrite, err = p.AddUser(emailWriteBefore, "pass")
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+	readChannel := make(chan *ReadRequest)
+	writeChannel := make(chan *WriteRequest)
+	responseChannel := make(chan *User)
+	go UserCache(readChannel, writeChannel)
+
+	writeChannel <- &WriteRequest{User: userWrite}
+	readChannel <- &ReadRequest{Id: userWrite.GetId(), ResponseChannel: responseChannel}
+	userRead := <-responseChannel
+	emailReadBefore := userRead.Email
+
+	userWrite.Email = emailWriteAfter
+	writeChannel <- &WriteRequest{User: userWrite}
+	readChannel <- &ReadRequest{Id: userWrite.GetId(), ResponseChannel: responseChannel}
+	userRead = <-responseChannel
+	emailReadAfter := userRead.Email
+
+	writeChannel <- &WriteRequest{User: userWrite, Remove: true}
+	readChannel <- &ReadRequest{Id: userWrite.GetId(), ResponseChannel: responseChannel}
+	userRead = <-responseChannel
+
+	if emailReadBefore != emailWriteBefore {
+		t.Logf("email wrong after initial write: expected \"%s\", got \"%s\"",
+			emailWriteBefore, emailReadBefore)
+		t.Fail()
+	}
+	if emailReadAfter != emailWriteAfter {
+		t.Logf("email wrong after rewrite: expected \"%s\", got \"%s\"",
+			emailWriteAfter, emailReadAfter)
+		t.Fail()
+	}
+	if userRead != nil {
+		t.Log("user not removed: expected nil, got non-nil")
+		t.Fail()
+	}
+}

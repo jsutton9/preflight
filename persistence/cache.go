@@ -10,7 +10,7 @@ type WriteRequest struct {
 	Remove bool
 }
 
-func Cache(ReadChannel chan *ReadRequest, WriteChannel chan *WriteRequest) {
+func UserCache(readChannel chan *ReadRequest, writeChannel chan *WriteRequest) {
 	users := make(map[string]*User)
 	var read *ReadRequest
 	var write *WriteRequest
@@ -23,7 +23,8 @@ func Cache(ReadChannel chan *ReadRequest, WriteChannel chan *WriteRequest) {
 				users[write.User.GetId()] = write.User
 			}
 		case read = <-readChannel:
-			//TODO
+			u, _ := users[read.Id]
+			read.ResponseChannel <- u
 		}
 	}
 }
