@@ -18,8 +18,8 @@ func main() {
 	usage += "\tpreflight add-checklist EMAIL CHECKLIST_NAME CHECKLIST_FILE\n"
 	usage += "\tpreflight update-checklist EMAIL CHECKLIST_NAME CHECKLIST_FILE\n"
 	usage += "\tpreflight delete-checklist EMAIL CHECKLIST_NAME\n"
-	usage += "\tpreflight set-todoist-token EMAIL TOKEN\n"
-	usage += "\tpreflight set-trello-token EMAIL TOKEN\n"
+	usage += "\tpreflight set-todoist-token CONFIG_FILE EMAIL TOKEN\n"
+	usage += "\tpreflight set-trello-token CONFIG_FILE EMAIL TOKEN\n"
 	usage += "\tpreflight get-general-settings EMAIL\n"
 	usage += "\tpreflight set-general-setting EMAIL SETTING VALUE\n"
 	usage += "\tpreflight register-node CONFIG_FILE\n"
@@ -201,13 +201,23 @@ func main() {
 			return
 		}
 	} else if os.Args[1] == "set-todoist-token" {
-		if len(os.Args) != 4 {
+		if len(os.Args) != 5 {
 			logger.Println(usage)
 			return
 		}
-		email := os.Args[2]
-		token := os.Args[3]
-		persister, err := persistence.New("localhost", "users")
+		configFile := os.Args[2]
+		email := os.Args[3]
+		token := os.Args[4]
+		settings, err := persistence.GetServerSettings(configFile)
+		if err != nil {
+			logger.Println(err.Prepend("main: error loading server settings: ").Error())
+			return
+		}
+		persister, err := persistence.New(settings.DatabaseServer, settings.DatabaseUsersCollection)
+		if err != nil {
+			logger.Println(err.Prepend("main: error getting persister: ").Error())
+			return
+		}
 		if err != nil {
 			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
@@ -223,13 +233,19 @@ func main() {
 			return
 		}
 	} else if os.Args[1] == "set-trello-token" {
-		if len(os.Args) != 4 {
+		if len(os.Args) != 5 {
 			logger.Println(usage)
 			return
 		}
-		email := os.Args[2]
-		token := os.Args[3]
-		persister, err := persistence.New("localhost", "users")
+		configFile := os.Args[2]
+		email := os.Args[3]
+		token := os.Args[4]
+		settings, err := persistence.GetServerSettings(configFile)
+		if err != nil {
+			logger.Println(err.Prepend("main: error loading server settings: ").Error())
+			return
+		}
+		persister, err := persistence.New(settings.DatabaseServer, settings.DatabaseUsersCollection)
 		if err != nil {
 			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
