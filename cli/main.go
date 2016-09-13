@@ -12,7 +12,7 @@ import (
 func main() {
 	usage := "Usage:\n"
 	usage += "\tpreflight add-user EMAIL PASSWORD\n"
-	usage += "\tpreflight update EMAIL TRELLO_KEY\n"
+	usage += "\tpreflight update CONFIG_FILE EMAIL TRELLO_KEY\n"
 	usage += "\tpreflight invoke EMAIL CHECKLIST_NAME TRELLO_KEY\n"
 	usage += "\tpreflight get-checklists EMAIL\n"
 	usage += "\tpreflight add-checklist EMAIL CHECKLIST_NAME CHECKLIST_FILE\n"
@@ -47,17 +47,23 @@ func main() {
 		}
 		fmt.Println("id: " + id)
 	} else if os.Args[1] == "update" {
-		if len(os.Args) != 4 {
+		if len(os.Args) != 5 {
 			logger.Println(usage)
 			return
 		}
-		email := os.Args[2]
-		trelloKey := os.Args[3]
-		persister, err := persistence.New("localhost", "users")
+		configFile := os.Args[2]
+		settings, err := persistence.GetServerSettings(configFile)
+		if err != nil {
+			logger.Println(err.Prepend("main: error loading server settings: ").Error())
+			return
+		}
+		persister, err := persistence.New(settings.DatabaseServer, settings.DatabaseUsersCollection)
 		if err != nil {
 			logger.Println(err.Prepend("main: error getting persister: ").Error())
 			return
 		}
+		email := os.Args[3]
+		trelloKey := os.Args[4]
 		id, err := commands.GetUserIdFromEmail(email, persister)
 		if err != nil {
 			logger.Println(err.Prepend("main: error getting user id: ").Error())
