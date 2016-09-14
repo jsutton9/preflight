@@ -3,10 +3,12 @@ package checklist
 import (
 	"github.com/jsutton9/preflight/api/errors"
 	"github.com/jsutton9/preflight/clients/trello"
+	"os/exec"
 	"time"
 )
 
 type Checklist struct {
+	Id string              `json:"id"`
 	TasksSource string     `json:"tasksSource"`
 	TasksTarget string     `json:"tasksTarget"`
 	IsScheduled bool       `json:"isScheduled"`
@@ -143,4 +145,18 @@ func (c Checklist) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time
 		err.Prepend("checklist.Checklist.Action: error: ")
 	}
 	return action, updateTime, err
+}
+
+func (c *Checklist) GenId() *errors.PreflightError {
+	idBytes, err := exec.Command("uuidgen").Output()
+	if err != nil {
+		return &errors.PreflightError{
+			Status: 500,
+			InternalMessage: "checklist.Checklist.SetId: error generating uuid: " +
+				"\n\t" + err.Error(),
+			ExternalMessage: "There was an error creating the checklist.",
+		}
+	}
+	c.Id = string(idBytes[:len(idBytes)-1])
+	return nil
 }

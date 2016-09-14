@@ -428,6 +428,10 @@ func AddChecklist(id, checklistReqString string, persister *persistence.Persiste
 		}
 	}
 
+	pErr = request.Checklist.GenId()
+	if pErr != nil {
+		return "", pErr.Prepend("commands.AddChecklist: error generating ID: ")
+	}
 	user.Checklists[request.Name] = &request.Checklist
 	pErr = persister.UpdateUser(user)
 	if pErr != nil {

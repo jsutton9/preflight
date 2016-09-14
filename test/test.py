@@ -15,14 +15,14 @@ try:
     #print c.authorize("api-test2@foo.bar", "pass", {"checklistInvoke": True})
 
     #print c.delete_checklist("bar")
-    #print c.add_checklist("bar", {"tasksSource": "preflight", "tasksTarget": "preflight", "isScheduled": False, "tasks": ["x", "y"]})
+    print c.add_checklist("bar", {"tasksSource": "preflight", "tasksTarget": "preflight", "isScheduled": False, "tasks": ["x", "y"]})
 
-    #print c.get_checklist("bar")
+    print c.get_checklist("bar")
 
     #c.invoke_checklist("bar")
 
-    c.update_global_setting("foo", "America/Chicago")
-    print c.get_global_settings()
+    #c.update_global_setting("foo", "America/Chicago")
+    #print c.get_global_settings()
 
     #print c.add_token({"checklistInvoke": True})
 

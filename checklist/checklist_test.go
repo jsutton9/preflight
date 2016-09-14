@@ -149,3 +149,18 @@ func TestConfigScheduling(test *testing.T) {
 	actionTest(test, intervalWeekdays, mondayNoon, fridayMorning, fridayNoon, 1)
 	test.Log("")
 }
+
+func TestId(test *testing.T) {
+	c := Checklist{}
+	c.GenId()
+	if len(c.Id) == 0 {
+		test.Log("id test failed: Id is empty after GenId()")
+		test.Fail()
+	}
+	d := Checklist{}
+	d.GenId()
+	if c.Id == d.Id {
+		test.Log("id test failed: Two checklists generated the same id: "+c.Id)
+		test.Fail()
+	}
+}
