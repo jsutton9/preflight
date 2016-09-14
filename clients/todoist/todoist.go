@@ -97,7 +97,7 @@ func (c Client) PostTask(task string) (int, *errors.PreflightError) {
 	}
 	body := make([]byte, 10000)
 	bodyLen, err := response.Body.Read(body)
-	if err != nil {
+	if err != nil && err.Error() != "EOF" {
 		return 0, &errors.PreflightError{
 			Status: 500,
 			InternalMessage: "todoist.Client.PostTask: error reading response: " +
