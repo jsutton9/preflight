@@ -375,7 +375,14 @@ func handleSettings(w http.ResponseWriter, r *http.Request, settings *persistenc
 			return
 		}
 
-		err = commands.SetGeneralSetting(id, settingName, settingValue, persister)
+		if settingName == "todoist-token" {
+			err = commands.SetTodoistToken(id, settingValue, persister)
+		} else if settingName == "trello-token" {
+			err = commands.SetTrelloToken(id, settingValue, persister)
+		} else {
+			err = commands.SetGeneralSetting(id, settingName, settingValue, persister)
+		}
+
 		if err != nil {
 			err = err.Prepend("api.handleChecklists: error setting setting: ")
 			logger.Println(err.Error())
