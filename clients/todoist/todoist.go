@@ -167,7 +167,7 @@ func (c Client) DeleteTask(id int) *errors.PreflightError {
 	}
 	body := make([]byte, 10000)
 	bodyLen, err := response.Body.Read(body)
-	if err != nil {
+	if err != nil && err.Error() != "EOF" {
 		return &errors.PreflightError{
 			Status: 500,
 			InternalMessage: "todoist.Client.DeleteTask: error reading response: " +
