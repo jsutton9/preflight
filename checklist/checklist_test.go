@@ -33,6 +33,19 @@ func negativeActionTest(test *testing.T, s Schedule, lastAdd time.Time, last tim
 	}
 }
 
+func nextAddTest(test *testing.T, s Schedule, now time.Time, expected time.Time) {
+	result, err := s.NextAdd(now)
+	if err != nil {
+		test.Error(err)
+	} else if ! result.Equal(expected) {
+		test.Log( "  NextAdd failure: ")
+		test.Logf("    now: %s\n", now.String())
+		test.Logf("    expected: %s\n", expected.String())
+		test.Logf("    result: %s\n", result.String())
+		test.Fail()
+	}
+}
+
 func TestConfigScheduling(test *testing.T) {
 	daily := Schedule{
 		Start: "9:00",
@@ -148,6 +161,66 @@ func TestConfigScheduling(test *testing.T) {
 	actionTest(test, intervalWeekdays, mondayNoon, thursdayMorning, thursdayNoon, 0)
 	actionTest(test, intervalWeekdays, mondayNoon, fridayMorning, fridayNoon, 1)
 	test.Log("")
+}
+
+func TestNextAdd(test *testing.T) {
+	daily := Schedule{
+		Start: "12:00",
+	}
+	weekdays := Schedule{
+		Days: []string{"Monday", "Wednesday"},
+		Start: "12:00",
+	}
+	intervalWeekdays := Schedule{
+		Days: []string{"Monday", "Tuesday", "Thursday"},
+		Interval: 3,
+		Start: "12:00",
+	}
+	longInterval := Schedule{
+		Interval: 100,
+		Start: "12:00",
+	}
+
+	format := "2006-01-02 15:04:05"
+	location, err := time.LoadLocation("America/Denver")
+	if err != nil {
+		test.Fatal(err)
+	}
+	mondayMorning, err    := time.ParseInLocation(format, "2016-04-04 01:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+	mondayNoon, err       := time.ParseInLocation(format, "2016-04-04 12:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+	mondayEvening, err    := time.ParseInLocation(format, "2016-04-04 23:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+
+	tuesdayMorning := mondayMorning.AddDate(0, 0, 1)
+	tuesdayNoon := mondayNoon.AddDate(0, 0, 1)
+	wednesdayNoon := mondayNoon.AddDate(0, 0, 2)
+	thursdayNoon := mondayNoon.AddDate(0, 0, 3)
+	nextMondayNoon := mondayNoon.AddDate(0, 0, 7)
+	hundredDaysLater := mondayNoon.AddDate(0, 0, 100)
+
+	test.Log("testing daily")
+	nextAddTest(test, daily, mondayMorning, mondayNoon)
+	nextAddTest(test, daily, mondayEvening, tuesdayNoon)
+
+	test.Log("testing weekdays")
+	nextAddTest(test, weekdays, mondayMorning, mondayNoon)
+	nextAddTest(test, weekdays, mondayEvening, wednesdayNoon)
+	nextAddTest(test, weekdays, tuesdayMorning, wednesdayNoon)
+
+	test.Log("testing interval and weekdays")
+	nextAddTest(test, intervalWeekdays, mondayMorning, thursdayNoon)
+	nextAddTest(test, intervalWeekdays, tuesdayMorning, nextMondayNoon)
+
+	test.Log("testing long interval")
+	nextAddTest(test, longInterval, mondayMorning, hundredDaysLater)
 }
 
 func TestId(test *testing.T) {

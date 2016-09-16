@@ -56,6 +56,59 @@ func parseWeekday(s string) (time.Weekday, *errors.PreflightError) {
 	}
 }
 
+func (s *Schedule) NextAdd(now time.Time) (time.Time, *errors.PreflightError) {
+	var scheduledToday bool
+	daysDelta := 1
+	if s.Interval > 0 {
+		daysDelta = s.Interval
+	}
+	if s.Days != nil && len(s.Days) > 0 {
+		minWeekday := (int(now.Weekday()) + daysDelta) % 7
+		scheduledToday = false
+		bestMinusMin := 8
+		for _, weekdayString := range s.Days {
+			weekday, err := parseWeekday(weekdayString)
+			if err != nil {
+				return now, err.Prepend("checklist.Schedule.NextAdd: error parsing weekday: ")
+			}
+			weekdayDelta := (int(weekday) - minWeekday) % 7
+			if weekdayDelta < 0 {
+				weekdayDelta += 7
+			}
+			if weekdayDelta < bestMinusMin {
+				bestMinusMin = weekdayDelta
+			}
+			if weekday == now.Weekday() {
+				scheduledToday = true
+			}
+		}
+		daysDelta += bestMinusMin
+	} else {
+		scheduledToday = true
+	}
+
+	y, m, d := now.Date()
+	location := now.Location()
+	startTime, err := time.ParseInLocation("15:04", s.Start, location)
+	if err != nil {
+		return now, &errors.PreflightError{
+			Status: 422,
+			InternalMessage: "checklist.Schedule.NextAdd: error parsing start time " +
+				"\"" + s.Start + "\": \n\t" + err.Error(),
+			ExternalMessage: "Unable to parse start time \"" + s.Start + "\"; should be like \"15:04\"",
+		}
+	}
+	nextAdd := time.Date(y, m, d+daysDelta, startTime.Hour(), startTime.Minute(), 0, 0, location)
+	if scheduledToday && s.Interval == 0 {
+		addToday := time.Date(y, m, d, startTime.Hour(), startTime.Minute(), 0, 0, location)
+		if addToday.After(now) {
+			nextAdd = addToday
+		}
+	}
+
+	return nextAdd, nil
+}
+
 func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, *errors.PreflightError) {
 	if s == nil {
 		return 0, lastUpdate, nil
