@@ -109,6 +109,28 @@ func (s *Schedule) NextAdd(now time.Time) (time.Time, *errors.PreflightError) {
 	return nextAdd, nil
 }
 
+func (s *Schedule) NextRemove(now time.Time) (time.Time, *errors.PreflightError) {
+	y, m, d := now.Date()
+	location := now.Location()
+
+	endTime, err := time.ParseInLocation("15:04", s.End, location)
+	if err != nil {
+		return now, &errors.PreflightError{
+			Status: 422,
+			InternalMessage: "checklist.Schedule.NextRemove: error parsing end time " +
+				"\"" + s.End + "\": \n\t" + err.Error(),
+			ExternalMessage: "Unable to parse end time \"" + s.End + "\"; should be like \"15:04\"",
+		}
+	}
+
+	removeTime := time.Date(y, m, d, endTime.Hour(), endTime.Minute(), 0, 0, location)
+	if ! removeTime.After(now) {
+		removeTime = removeTime.AddDate(0, 0, 1)
+	}
+
+	return removeTime, nil
+}
+
 func (s *Schedule) Action(lastAdd time.Time, lastUpdate time.Time, now time.Time) (int, time.Time, *errors.PreflightError) {
 	if s == nil {
 		return 0, lastUpdate, nil

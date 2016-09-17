@@ -1,6 +1,7 @@
 package checklist
 
 import (
+	"github.com/jsutton9/preflight/api/errors"
 	"testing"
 	"time"
 )
@@ -33,12 +34,21 @@ func negativeActionTest(test *testing.T, s Schedule, lastAdd time.Time, last tim
 	}
 }
 
-func nextAddTest(test *testing.T, s Schedule, now time.Time, expected time.Time) {
-	result, err := s.NextAdd(now)
+func nextAddRemoveTest(test *testing.T, s Schedule, now time.Time, expected time.Time, remove bool) {
+	var result time.Time
+	var err *errors.PreflightError
+	var name string
+	if remove {
+		result, err = s.NextRemove(now)
+		name = "NextRemove"
+	} else {
+		result, err = s.NextAdd(now)
+		name = "NextAdd"
+	}
 	if err != nil {
 		test.Error(err)
 	} else if ! result.Equal(expected) {
-		test.Log( "  NextAdd failure: ")
+		test.Logf("  %s failure: ", name)
 		test.Logf("    now: %s\n", now.String())
 		test.Logf("    expected: %s\n", expected.String())
 		test.Logf("    result: %s\n", result.String())
@@ -207,20 +217,45 @@ func TestNextAdd(test *testing.T) {
 	hundredDaysLater := mondayNoon.AddDate(0, 0, 100)
 
 	test.Log("testing daily")
-	nextAddTest(test, daily, mondayMorning, mondayNoon)
-	nextAddTest(test, daily, mondayEvening, tuesdayNoon)
+	nextAddRemoveTest(test, daily, mondayMorning, mondayNoon, false)
+	nextAddRemoveTest(test, daily, mondayEvening, tuesdayNoon, false)
 
 	test.Log("testing weekdays")
-	nextAddTest(test, weekdays, mondayMorning, mondayNoon)
-	nextAddTest(test, weekdays, mondayEvening, wednesdayNoon)
-	nextAddTest(test, weekdays, tuesdayMorning, wednesdayNoon)
+	nextAddRemoveTest(test, weekdays, mondayMorning, mondayNoon, false)
+	nextAddRemoveTest(test, weekdays, mondayEvening, wednesdayNoon, false)
+	nextAddRemoveTest(test, weekdays, tuesdayMorning, wednesdayNoon, false)
 
 	test.Log("testing interval and weekdays")
-	nextAddTest(test, intervalWeekdays, mondayMorning, thursdayNoon)
-	nextAddTest(test, intervalWeekdays, tuesdayMorning, nextMondayNoon)
+	nextAddRemoveTest(test, intervalWeekdays, mondayMorning, thursdayNoon, false)
+	nextAddRemoveTest(test, intervalWeekdays, tuesdayMorning, nextMondayNoon, false)
 
 	test.Log("testing long interval")
-	nextAddTest(test, longInterval, mondayMorning, hundredDaysLater)
+	nextAddRemoveTest(test, longInterval, mondayMorning, hundredDaysLater, false)
+}
+
+func TestNextRemove(test *testing.T) {
+	endNoon := Schedule{
+		End: "12:00",
+	}
+
+	format := "2006-01-02 15:04:05"
+	location, err := time.LoadLocation("America/Denver")
+	if err != nil {
+		test.Fatal(err)
+	}
+	mondayMorning, err    := time.ParseInLocation(format, "2016-04-04 01:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+	mondayNoon, err       := time.ParseInLocation(format, "2016-04-04 12:00:00", location)
+	if err != nil {
+		test.Fatal(err)
+	}
+	tuesdayNoon := mondayNoon.AddDate(0, 0, 1)
+
+	test.Log("testing end at noon")
+	nextAddRemoveTest(test, endNoon, mondayMorning, mondayNoon, true)
+	nextAddRemoveTest(test, endNoon, mondayNoon, tuesdayNoon, true)
 }
 
 func TestId(test *testing.T) {
