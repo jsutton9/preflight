@@ -3,27 +3,14 @@ package persistence
 import (
 	"encoding/json"
 	"github.com/jsutton9/preflight/api/errors"
-	"github.com/jsutton9/preflight/checklist"
 	"github.com/jsutton9/preflight/security"
+	"github.com/jsutton9/preflight/user"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"log"
 	"io/ioutil"
 	"os"
 )
-
-type User struct {
-	Id bson.ObjectId                           `json:"id" bson:"_id,omitempty"`
-	Email string                               `json:"email"`
-	Settings GeneralSettings                   `json:"generalSettings"`
-	Security *security.SecurityInfo            `json:"security"`
-	Checklists map[string]*checklist.Checklist `json:"checklists"`
-}
-
-type GeneralSettings struct {
-	Timezone string    `json:"timezone"`
-	TrelloBoard string `json:"trelloBoard"`
-}
 
 type Persister struct {
 	Session *mgo.Session
@@ -53,10 +40,6 @@ type LoggerCloser struct {
 	*log.Logger
 	file *os.File
 	isStderr bool
-}
-
-func (u *User) GetId() string {
-	return u.Id.Hex()
 }
 
 func New(url, database string) (*Persister, *errors.PreflightError) {
@@ -180,7 +163,7 @@ func (p Persister) ValidateNodeSecret(secret string) (bool, *errors.PreflightErr
 	return n>0, nil
 }
 
-func (p Persister) AddUser(email, password string) (*User, *errors.PreflightError) {
+func (p Persister) AddUser(email, password string) (*user.User, *errors.PreflightError) {
 	existing_user, _ := p.GetUserByEmail(email)
 	if existing_user != nil {
 		return nil, &errors.PreflightError{
@@ -191,18 +174,11 @@ func (p Persister) AddUser(email, password string) (*User, *errors.PreflightErro
 		}
 	}
 
-	security, pErr := security.New(password)
+	newUser, pErr := user.New(email, password)
 	if pErr != nil {
-		return nil, pErr.Prepend("persistence.Persister.AddUser: error creating security: ")
+		return nil, pErr.Prepend("persistence.Persister.AddUser: ")
 	}
-	user := User{
-		Id: bson.NewObjectId(),
-		Email: email,
-		Settings: GeneralSettings{},
-		Security: security,
-		Checklists: make(map[string]*checklist.Checklist),
-	}
-	err := p.UserCollection.Insert(&user)
+	err := p.UserCollection.Insert(newUser)
 	if err != nil {
 		return nil, &errors.PreflightError{
 			Status: 500,
@@ -212,13 +188,13 @@ func (p Persister) AddUser(email, password string) (*User, *errors.PreflightErro
 		}
 	}
 
-	return &user, nil
+	return newUser, nil
 }
 
-func (p Persister) UpdateUser(user *User) *errors.PreflightError {
-	p.UserCacheWriteChannel <- &WriteRequest{User: user, OnlyIfCached: true}
+func (p Persister) UpdateUser(newUser *user.User) *errors.PreflightError {
+	p.UserCacheWriteChannel <- &WriteRequest{User: newUser, OnlyIfCached: true}
 
-	err := p.UserCollection.Update(bson.M{"_id": user.Id}, user)
+	err := p.UserCollection.Update(bson.M{"_id": newUser.Id}, newUser)
 	if err != nil {
 		return &errors.PreflightError{
 			Status: 500,
@@ -231,10 +207,10 @@ func (p Persister) UpdateUser(user *User) *errors.PreflightError {
 	return nil
 }
 
-func (p Persister) DeleteUser(user *User) *errors.PreflightError {
-	p.UserCacheWriteChannel <- &WriteRequest{User: user, Remove: true}
+func (p Persister) DeleteUser(targetUser *user.User) *errors.PreflightError {
+	p.UserCacheWriteChannel <- &WriteRequest{User: targetUser, Remove: true}
 
-	err := p.UserCollection.Remove(bson.M{"_id": user.Id})
+	err := p.UserCollection.Remove(bson.M{"_id": targetUser.Id})
 	if err != nil {
 		return &errors.PreflightError{
 			Status: 500,
@@ -247,16 +223,16 @@ func (p Persister) DeleteUser(user *User) *errors.PreflightError {
 	return nil
 }
 
-func (p Persister) GetUser(id string) (*User, *errors.PreflightError) {
-	responseChannel := make(chan *User)
+func (p Persister) GetUser(id string) (*user.User, *errors.PreflightError) {
+	responseChannel := make(chan *user.User)
 	p.UserCacheReadChannel <- &ReadRequest{Id: id, ResponseChannel: responseChannel}
-	user := <-responseChannel
-	if user != nil {
-		return user, nil
+	matchingUser := <-responseChannel
+	if matchingUser != nil {
+		return matchingUser, nil
 	}
 
-	user = &User{}
-	err := p.UserCollection.FindId(bson.ObjectIdHex(id)).One(user)
+	matchingUser = &user.User{}
+	err := p.UserCollection.FindId(bson.ObjectIdHex(id)).One(matchingUser)
 	if err != nil {
 		return nil, &errors.PreflightError{
 			Status: 404,
@@ -266,19 +242,19 @@ func (p Persister) GetUser(id string) (*User, *errors.PreflightError) {
 		}
 	}
 
-	return user, nil
+	return matchingUser, nil
 }
 
-func (p Persister) GetUserByEmail(email string) (*User, *errors.PreflightError) {
-	responseChannel := make(chan *User)
+func (p Persister) GetUserByEmail(email string) (*user.User, *errors.PreflightError) {
+	responseChannel := make(chan *user.User)
 	p.UserCacheReadChannel <- &ReadRequest{Email: email, ResponseChannel: responseChannel}
-	user := <-responseChannel
-	if user != nil {
-		return user, nil
+	matchingUser := <-responseChannel
+	if matchingUser != nil {
+		return matchingUser, nil
 	}
 
-	user = &User{}
-	err := p.UserCollection.Find(bson.M{"email": email}).One(user)
+	matchingUser = &user.User{}
+	err := p.UserCollection.Find(bson.M{"email": email}).One(matchingUser)
 	if err != nil {
 		return nil, &errors.PreflightError{
 			Status: 404,
@@ -288,19 +264,19 @@ func (p Persister) GetUserByEmail(email string) (*User, *errors.PreflightError) 
 		}
 	}
 
-	return user, nil
+	return matchingUser, nil
 }
 
-func (p Persister) GetUserByToken(secret string) (*User, *errors.PreflightError) {
-	responseChannel := make(chan *User)
+func (p Persister) GetUserByToken(secret string) (*user.User, *errors.PreflightError) {
+	responseChannel := make(chan *user.User)
 	p.UserCacheReadChannel <- &ReadRequest{TokenSecret: secret, ResponseChannel: responseChannel}
-	user := <-responseChannel
-	if user != nil {
-		return user, nil
+	matchingUser := <-responseChannel
+	if matchingUser != nil {
+		return matchingUser, nil
 	}
 
-	user = &User{}
-	err := p.UserCollection.Find(bson.M{"security.tokens.secret": secret}).One(user)
+	matchingUser = &user.User{}
+	err := p.UserCollection.Find(bson.M{"security.tokens.secret": secret}).One(matchingUser)
 	if err != nil {
 		return nil, &errors.PreflightError{
 			Status: 401,
@@ -310,7 +286,7 @@ func (p Persister) GetUserByToken(secret string) (*User, *errors.PreflightError)
 		}
 	}
 
-	return user, nil
+	return matchingUser, nil
 }
 
 func GetServerSettings(filename string) (*ServerSettings, *errors.PreflightError) {

@@ -4,6 +4,7 @@ import (
 	"testing"
 	"fmt"
 	"github.com/jsutton9/preflight/security"
+	"github.com/jsutton9/preflight/user"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -268,7 +269,7 @@ func TestCache(t *testing.T) {
 	}
 	readChannel := make(chan *ReadRequest)
 	writeChannel := make(chan *WriteRequest)
-	responseChannel := make(chan *User)
+	responseChannel := make(chan *user.User)
 	go UserCache(readChannel, writeChannel)
 
 	writeChannel <- &WriteRequest{User: userWrite}
@@ -329,7 +330,7 @@ func TestCacheByToken(t *testing.T) {
 		t.Fatal(err)
 	}
 	secretBefore := token.Secret
-	userWriteAfter := &User{Id: userWriteBefore.Id, Email: userWriteBefore.Email}
+	userWriteAfter := &user.User{Id: userWriteBefore.Id, Email: userWriteBefore.Email}
 	userWriteAfter.Security, err = security.New("pass")
 	if err != nil {
 		t.Fatal(err)
@@ -342,7 +343,7 @@ func TestCacheByToken(t *testing.T) {
 
 	readChannel := make(chan *ReadRequest)
 	writeChannel := make(chan *WriteRequest)
-	responseChannel := make(chan *User)
+	responseChannel := make(chan *user.User)
 	go UserCache(readChannel, writeChannel)
 
 	writeChannel <- &WriteRequest{User: userWriteBefore}
