@@ -18,7 +18,8 @@ type WriteRequest struct {
 }
 
 // TODO: update publish channel as param
-func UserCache(readChannel chan *ReadRequest, writeChannel chan *WriteRequest) {
+func UserCache(readChannel chan *ReadRequest, writeChannel chan *WriteRequest,
+		updateChannel chan *user.UserDelta) {
 	byId := make(map[string]*user.User)
 	byEmail := make(map[string]*user.User)
 	byToken := make(map[string]*user.User)
@@ -35,8 +36,6 @@ func UserCache(readChannel chan *ReadRequest, writeChannel chan *WriteRequest) {
 				for _, token := range cached.Security.Tokens {
 					delete(byToken, token.Secret)
 				}
-				// TODO: if remove, publish user removal
-				// TODO: if remove, publish checklist removal
 			}
 			if ! write.Remove && (! write.OnlyIfCached || cached != nil) {
 				byId[u.GetId()] = u
@@ -44,9 +43,9 @@ func UserCache(readChannel chan *ReadRequest, writeChannel chan *WriteRequest) {
 				for _, token := range u.Security.Tokens {
 					byToken[token.Secret] = u
 				}
-				// TODO: publish new user
-				// TODO: publish updated checklists
 			}
+			go publishUpdate(cached, u, write.Remove, updateChannel)
+
 		case read = <-readChannel:
 			var u *user.User
 			if read.Id != "" {
@@ -58,5 +57,18 @@ func UserCache(readChannel chan *ReadRequest, writeChannel chan *WriteRequest) {
 			}
 			read.ResponseChannel <- u
 		}
+	}
+}
+
+func publishUpdate(oldUser *user.User, newUser *user.User, remove bool,
+		updateChannel chan *user.UserDelta) {
+	var delta *user.UserDelta
+	if remove {
+		delta = oldUser.GetDelta(nil)
+	} else {
+		delta = oldUser.GetDelta(newUser)
+	}
+	if delta != nil {
+		updateChannel <- delta
 	}
 }

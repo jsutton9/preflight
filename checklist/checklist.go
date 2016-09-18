@@ -9,6 +9,7 @@ import (
 
 type Checklist struct {
 	Id string              `json:"id"`
+	Name string            `json:"name"`
 	TasksSource string     `json:"tasksSource"`
 	TasksTarget string     `json:"tasksTarget"`
 	IsScheduled bool       `json:"isScheduled"`
@@ -61,6 +62,54 @@ func (c *Checklist) GenId() *errors.PreflightError {
 	}
 	c.Id = string(idBytes[:len(idBytes)-1])
 	return nil
+}
+
+func (c *Checklist) Equals(b *Checklist) bool {
+	if c==nil && b==nil {
+		return true
+	} else if c==nil || b==nil {
+		return false
+	}
+
+	if c.Id!=b.Id || c.Name!=b.Name || c.TasksSource!=b.TasksSource || c.IsScheduled!=b.IsScheduled {
+		return false
+	} else if ! c.Trello.Equals(b.Trello) {
+		return false
+	} else if ! c.Schedule.Equals(b.Schedule) {
+		return false
+	} else if len(c.Tasks) != len(b.Tasks) {
+		return false
+	} else {
+		for i, task := range c.Tasks {
+			if task != b.Tasks[i] {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (s *Schedule) Equals(b *Schedule) bool {
+	if s==nil && b==nil {
+		return true
+	} else if s==nil || b==nil {
+		return false
+	}
+
+	if s.Interval != b.Interval || s.Start != b.Start || s.End != b.End {
+		return false
+	} else if len(s.Days) != len(b.Days) {
+		return false
+	} else {
+		for i, day := range s.Days {
+			if day != b.Days[i] {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 func (s *Schedule) NextAdd(now time.Time) (time.Time, *errors.PreflightError) {

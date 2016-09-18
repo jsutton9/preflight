@@ -3,6 +3,7 @@ package persistence
 import (
 	"testing"
 	"fmt"
+	"github.com/jsutton9/preflight/checklist"
 	"github.com/jsutton9/preflight/security"
 	"github.com/jsutton9/preflight/user"
 	"io/ioutil"
@@ -270,7 +271,8 @@ func TestCache(t *testing.T) {
 	readChannel := make(chan *ReadRequest)
 	writeChannel := make(chan *WriteRequest)
 	responseChannel := make(chan *user.User)
-	go UserCache(readChannel, writeChannel)
+	updateChannel := make(chan *user.UserDelta)
+	go UserCache(readChannel, writeChannel, updateChannel)
 
 	writeChannel <- &WriteRequest{User: userWrite}
 	readChannel <- &ReadRequest{Id: userWrite.GetId(), ResponseChannel: responseChannel}
@@ -344,7 +346,8 @@ func TestCacheByToken(t *testing.T) {
 	readChannel := make(chan *ReadRequest)
 	writeChannel := make(chan *WriteRequest)
 	responseChannel := make(chan *user.User)
-	go UserCache(readChannel, writeChannel)
+	updateChannel := make(chan *user.UserDelta)
+	go UserCache(readChannel, writeChannel, updateChannel)
 
 	writeChannel <- &WriteRequest{User: userWriteBefore}
 	readChannel <- &ReadRequest{TokenSecret: secretBefore, ResponseChannel: responseChannel}
@@ -367,4 +370,93 @@ func TestCacheByToken(t *testing.T) {
 		t.Log("get by updated token failed: got nil")
 		t.Fail()
 	}
+}
+
+func checkDelta(t *testing.T, delta *user.UserDelta, timeout bool,
+		expectEmail string, expectAdd int, expectRemove int, expectUpdate int) {
+	if timeout {
+		t.Log("update timed out")
+		t.Fail()
+		return
+	}
+	if delta.User.Email != expectEmail {
+		t.Logf("delta email wrong: expected %s, got %s\n", expectEmail, delta.User.Email)
+		t.Fail()
+	}
+	if len(delta.Added) != expectAdd || len(delta.Removed) != expectRemove ||
+			len(delta.Updated) != expectUpdate {
+		t.Log( "delta checklists wrong: ")
+		t.Logf("  expected %d added, %d removed, %d updated",
+			expectAdd, expectRemove, expectUpdate)
+		t.Logf("  got      %d added, %d removed, %d updated",
+			len(delta.Added), len(delta.Removed), len(delta.Updated))
+		t.Fail()
+	}
+}
+
+func TestCacheUpdates(t *testing.T) {
+	emailBefore := "before@preflight.com"
+	emailAfter := "after@preflight.com"
+	userBefore, err := user.New(emailBefore, "pass")
+	if err != nil {
+		t.Fatal(err)
+	}
+	userBefore.Checklists = append(userBefore.Checklists, &checklist.Checklist{Id:"a"})
+	userBefore.Checklists = append(userBefore.Checklists, &checklist.Checklist{Id:"b"})
+	userBefore.Checklists = append(userBefore.Checklists, &checklist.Checklist{Id:"c"})
+	userAfter, err := user.New(emailAfter, "pass")
+	if err != nil {
+		t.Fatal(err)
+	}
+	userAfter.Id = userBefore.Id
+	userAfter.Checklists = append(userAfter.Checklists, &checklist.Checklist{Id:"a"})
+	userAfter.Checklists = append(userAfter.Checklists, &checklist.Checklist{Id:"b", Name:"not-empty"})
+	userAfter.Checklists = append(userAfter.Checklists, &checklist.Checklist{Id:"d"})
+
+	readChannel := make(chan *ReadRequest)
+	writeChannel := make(chan *WriteRequest)
+	updateChannel := make(chan *user.UserDelta)
+	go UserCache(readChannel, writeChannel, updateChannel)
+
+	writeChannel <- &WriteRequest{User: userBefore}
+	initialDelta := &user.UserDelta{}
+	initialTimeout := false
+	select {
+	case initialDelta = <-updateChannel:
+	case <-time.After(time.Millisecond*1000):
+		initialTimeout = true
+	}
+	writeChannel <- &WriteRequest{User: userBefore}
+	unchangedDelta := &user.UserDelta{}
+	unchangedTimeout := false
+	select {
+	case unchangedDelta = <-updateChannel:
+	case <-time.After(time.Millisecond*1000):
+		unchangedTimeout = true
+	}
+	writeChannel <- &WriteRequest{User: userAfter}
+	changedDelta := &user.UserDelta{}
+	changedTimeout := false
+	select {
+	case changedDelta = <-updateChannel:
+	case <-time.After(time.Millisecond*1000):
+		changedTimeout = true
+	}
+	writeChannel <- &WriteRequest{User: userAfter, Remove: true}
+	removedDelta := &user.UserDelta{}
+	removedTimeout := false
+	select {
+	case removedDelta = <-updateChannel:
+	case <-time.After(time.Millisecond*1000):
+		removedTimeout = true
+	}
+
+	t.Log("checking initial write")
+	checkDelta(t, initialDelta, initialTimeout, emailBefore, 3, 0, 0)
+	t.Log("checking unchanged write")
+	checkDelta(t, unchangedDelta, unchangedTimeout, emailBefore, 0, 0, 0)
+	t.Log("checking changed write")
+	checkDelta(t, changedDelta, changedTimeout, emailAfter, 1, 1, 1)
+	t.Log("checking removed write")
+	checkDelta(t, removedDelta, removedTimeout, emailAfter, 0, 3, 0)
 }

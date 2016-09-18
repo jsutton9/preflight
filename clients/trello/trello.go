@@ -41,6 +41,20 @@ type ListKey struct {
 	Name string  `json:"name"`
 }
 
+func (l *ListKey) Equals(b *ListKey) bool {
+	if l==nil && b==nil {
+		return true
+	} else if l==nil || b==nil {
+		return false
+	}
+
+	if l.Board != b.Board || l.Name != b.Name {
+		return false
+	}
+
+	return true
+}
+
 func (c Client) get(query string) ([]byte, *errors.PreflightError) {
 	request := c.Url + query + "&key=" + c.Key + "&token=" + c.Security.Token
 	response, err := http.Get(request)

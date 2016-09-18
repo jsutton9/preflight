@@ -58,7 +58,8 @@ func New(url, database string) (*Persister, *errors.PreflightError) {
 
 	readChannel := make(chan *ReadRequest)
 	writeChannel := make(chan *WriteRequest)
-	go UserCache(readChannel, writeChannel)
+	updateChannel := make(chan *user.UserDelta)
+	go UserCache(readChannel, writeChannel, updateChannel)
 
 	p := Persister{
 		Session: session,
