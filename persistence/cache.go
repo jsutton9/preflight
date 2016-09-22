@@ -17,7 +17,6 @@ type WriteRequest struct {
 	OnlyIfCached bool
 }
 
-// TODO: update publish channel as param
 func UserCache(readChannel chan *ReadRequest, writeChannel chan *WriteRequest,
 		updateChannel chan *user.UserDelta) {
 	byId := make(map[string]*user.User)

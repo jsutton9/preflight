@@ -2,6 +2,7 @@ package checklist
 
 import (
 	"github.com/jsutton9/preflight/api/errors"
+	"github.com/jsutton9/preflight/clients/todoist"
 	"github.com/jsutton9/preflight/clients/trello"
 	"os/exec"
 	"time"
@@ -185,4 +186,42 @@ func (s *Schedule) NextRemove(now time.Time) (time.Time, *errors.PreflightError)
 	}
 
 	return removeTime, nil
+}
+
+func (c *Checklist) PostTasks(tdst todoist.Client, trl trello.Client) ([]int, *errors.PreflightError) {
+	ids := make([]int, 0)
+
+	if c.TasksSource == "preflight" {
+		for _, task := range c.Tasks {
+			id, pErr := tdst.PostTask(task)
+			if pErr != nil {
+				return ids, pErr.Prepend("Checklist.PostTasks: error posting task:")
+			}
+			ids = append(ids, id)
+		}
+	} else if c.TasksSource == "trello" {
+		tasks, pErr := trl.Tasks(c.Trello)
+		if pErr != nil {
+			return ids, pErr.Prepend("Checklist.PostTasks: error getting tasks from trello:")
+		}
+		for _, task := range tasks {
+			id, pErr := tdst.PostTask(task)
+			if pErr != nil {
+				return ids, pErr.Prepend("Checklist.PostTasks: error posting task:")
+			}
+			ids = append(ids, id)
+		}
+	}
+
+	return ids, nil
+}
+
+func (c *Checklist) DeleteTasks(tdst todoist.Client, ids []int) *errors.PreflightError {
+	for _, id := range ids {
+		err := tdst.DeleteTask(id)
+		if err != nil {
+			return err.Prepend("Checklist.DeleteTasks: error deleting task: ")
+		}
+	}
+	return nil
 }

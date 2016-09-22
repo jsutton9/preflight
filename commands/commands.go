@@ -332,7 +332,7 @@ func Update(id string, trelloKey string, persister *persistence.Persister) *erro
 			job.Checklist.Record = new(checklist.UpdateRecord)
 		}
 		if job.Action > 0 {
-			job.Checklist.Record.Ids, pErr = postTasks(td, trelloClient, *job.Checklist)
+			job.Checklist.Record.Ids, pErr = job.Checklist.PostTasks(td, trelloClient)
 			if pErr != nil {
 				return pErr.Prepend("commands.Update: error posting tasks: ")
 			}
@@ -389,7 +389,7 @@ func Invoke(id string, name string, trelloKey string, persister *persistence.Per
 	}
 	now := time.Now().In(loc)
 
-	cl.Record.Ids, pErr = postTasks(todoistClient, trelloClient, *cl)
+	cl.Record.Ids, pErr = cl.PostTasks(todoistClient, trelloClient)
 	if pErr != nil {
 		return pErr.Prepend("commands.Invoke: error posting tasks: ")
 	}
@@ -591,32 +591,4 @@ func SetGeneralSetting(id, name, value string, persister *persistence.Persister)
 		return pErr.Prepend("commands.SetGeneralSettings: error updating user in db: ")
 	}
 	return nil
-}
-
-func postTasks(c todoist.Client, trl trello.Client, checklist checklist.Checklist) ([]int, *errors.PreflightError) {
-	ids := make([]int, 0)
-
-	if checklist.TasksSource == "preflight" {
-		for _, task := range checklist.Tasks {
-			id, pErr := c.PostTask(task)
-			if pErr != nil {
-				return ids, pErr.Prepend("commands.postTasks: error posting tasks:")
-			}
-			ids = append(ids, id)
-		}
-	} else if checklist.TasksSource == "trello" {
-		tasks, pErr := trl.Tasks(checklist.Trello)
-		if pErr != nil {
-			return ids, pErr.Prepend("commands.postTasks: error getting tasks from trello:")
-		}
-		for _, task := range tasks {
-			id, pErr := c.PostTask(task)
-			if pErr != nil {
-				return ids, pErr.Prepend("commands.postTasks: error posting tasks:")
-			}
-			ids = append(ids, id)
-		}
-	}
-
-	return ids, nil
 }
