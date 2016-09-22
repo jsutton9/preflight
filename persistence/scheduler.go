@@ -18,7 +18,8 @@ type UpdateJob struct {
 type Queue struct {
 	Jobs []*UpdateJob
 	Size int
-	//TODO
+	byChecklist map[string][]*UpdateJob
+	byUser map[string][]*UpdateJob
 }
 
 func (q *Queue) insert(job *UpdateJob) {
@@ -33,7 +34,7 @@ func (q *Queue) Pop(now *time.Time) *UpdateJob {
 	//TODO
 }
 
-func (q *Queue) AddChecklist(cl *checklist.Checklist, now *time.Time) {
+func (q *Queue) AddChecklist(u *user.User, cl *checklist.Checklist, now *time.Time) {
 	//TODO
 }
 
