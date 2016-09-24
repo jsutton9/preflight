@@ -1,6 +1,6 @@
 package persistence
 
-import (
+/*import (
 	"time"
 	"github.com/jsutton9/preflight/checklist"
 	"github.com/jsutton9/preflight/user"
@@ -52,4 +52,4 @@ func (q *Queue) RemoveUser(id string) {
 
 func Schedule(updateChannel chan *user.UserDelta) {
 	//TODO
-}
+}*/
