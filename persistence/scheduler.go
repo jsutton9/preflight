@@ -1,9 +1,10 @@
 package persistence
 
 import (
-	"time"
 	"github.com/jsutton9/preflight/checklist"
+	"github.com/jsutton9/preflight/api/errors"
 	"github.com/jsutton9/preflight/user"
+	"time"
 )
 
 type UpdateJob struct {
@@ -18,20 +19,26 @@ type UpdateJob struct {
 type Queue struct {
 	Jobs []*UpdateJob
 	Size int
-	byChecklist map[string][]*UpdateJob
-	byUser map[string][]*UpdateJob
+	addsByChecklist map[string]*UpdateJob
+	removesByChecklist map[string]*UpdateJob
 }
 
 func NewQueue() *Queue {
 	return &Queue{
 		Jobs: make([]*UpdateJob, 0),
 		Size: 0,
-		byChecklist: make(map[string][]*UpdateJob),
-		byUser: make(map[string][]*UpdateJob),
+		addsByChecklist: make(map[string]*UpdateJob),
+		removesByChecklist: make(map[string]*UpdateJob),
 	}
 }
 
 func (q *Queue) insert(job *UpdateJob) {
+	if job.Remove {
+		q.removesByChecklist[job.Checklist.Id] = job
+	} else {
+		q.addsByChecklist[job.Checklist.Id] = job
+	}
+
 	q.Jobs = append(q.Jobs, job)
 	i := q.Size
 	job.Index = i
@@ -52,6 +59,13 @@ func (q *Queue) insert(job *UpdateJob) {
 }
 
 func (q *Queue) remove(i int) {
+	job := q.Jobs[i]
+	if job.Remove {
+		delete(q.removesByChecklist, job.Checklist.Id)
+	} else {
+		delete(q.addsByChecklist, job.Checklist.Id)
+	}
+
 	q.Size--
 	q.Jobs[i] = q.Jobs[q.Size]
 	q.Jobs = q.Jobs[:q.Size]
@@ -60,7 +74,7 @@ func (q *Queue) remove(i int) {
 		return
 	}
 	for {
-		job := q.Jobs[i]
+		job = q.Jobs[i]
 		i_left := 2*i + 1
 		i_right := 2*i + 2
 		var leftChild, rightChild *UpdateJob
@@ -104,14 +118,40 @@ func (q *Queue) Pop(now *time.Time) *UpdateJob {
 	}
 }
 
-/*func (q *Queue) AddChecklist(u *user.User, cl *checklist.Checklist, now *time.Time) {
-	//TODO
+func (q *Queue) AddChecklist(u *user.User, cl *checklist.Checklist, now *time.Time) *errors.PreflightError {
+	q.addsByChecklist[cl.Id] = nil
+	q.removesByChecklist[cl.Id] = nil
+
+	if cl.IsScheduled {
+		t, err := cl.Schedule.NextAdd(*now)
+		if err != nil {
+			return err.Prepend("scheduler.Queue.AddChecklist: error getting add time: ")
+		}
+		job := &UpdateJob{
+			Time: t,
+			Checklist: cl,
+			User: u,
+		}
+		q.insert(job)
+	}
+
+	return nil
 }
 
 func (q *Queue) AddUser(u *user.User, now *time.Time) {
-	//TODO
+	for _, cl := range u.Checklists {
+		job, found := q.addsByChecklist[cl.Id]
+		if found && job != nil {
+			job.User = u
+		}
+		job, found = q.removesByChecklist[cl.Id]
+		if found && job != nil {
+			job.User = u
+		}
+	}
 }
 
+/*
 func (q *Queue) RemoveChecklist(id string) {
 	//TODO
 }
@@ -122,4 +162,9 @@ func (q *Queue) RemoveUser(id string) {
 
 func Schedule(updateChannel chan *user.UserDelta) {
 	//TODO
-}*/
+}
+
+func DoAdd(job *UpdateJob, removeChannel chan UpdateChannel) {
+	//TODO
+}
+*/

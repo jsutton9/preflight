@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"github.com/jsutton9/preflight/checklist"
 	"math/rand"
 	"testing"
 	"time"
@@ -11,12 +12,13 @@ func TestQueueing(t *testing.T) {
 	now := time.Now()
 	before := now.AddDate(-1, 0, 0)
 	after := now.AddDate(1, 0, 0)
+	cl := &checklist.Checklist{}
 
 	t.Log("starting first insertion")
 	for i:=0; i<60; i++ {
 		offset := time.Duration(rand.Intn(100))*time.Hour
 		t := now.Add(offset)
-		q.insert(&UpdateJob{Time: t})
+		q.insert(&UpdateJob{Time: t, Checklist: cl})
 	}
 
 	resultBefore := q.Pop(&before)
@@ -43,7 +45,7 @@ func TestQueueing(t *testing.T) {
 	for i:=0; i<30; i++ {
 		offset := time.Duration(rand.Intn(100))*time.Hour
 		t := now.Add(offset)
-		q.insert(&UpdateJob{Time: t})
+		q.insert(&UpdateJob{Time: t, Checklist: cl})
 	}
 
 	t.Log("starting second popping")
