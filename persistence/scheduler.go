@@ -16,29 +16,30 @@ type UpdateJob struct {
 	Index int
 }
 
+type checklistTracker struct {
+	User *user.User
+	Checklist *checklist.Checklist
+	AddJob *UpdateJob
+	RemoveJob *UpdateJob
+}
+
 type Queue struct {
 	Jobs []*UpdateJob
 	Size int
-	addsByChecklist map[string]*UpdateJob
-	removesByChecklist map[string]*UpdateJob
+	trackersByChecklist map[string]*checklistTracker
+	trackersByUser map[string][]*checklistTracker
 }
 
 func NewQueue() *Queue {
 	return &Queue{
 		Jobs: make([]*UpdateJob, 0),
 		Size: 0,
-		addsByChecklist: make(map[string]*UpdateJob),
-		removesByChecklist: make(map[string]*UpdateJob),
+		trackersByChecklist: make(map[string]*checklistTracker),
+		trackersByUser: make(map[string][]*checklistTracker),
 	}
 }
 
 func (q *Queue) insert(job *UpdateJob) {
-	if job.Remove {
-		q.removesByChecklist[job.Checklist.Id] = job
-	} else {
-		q.addsByChecklist[job.Checklist.Id] = job
-	}
-
 	q.Jobs = append(q.Jobs, job)
 	i := q.Size
 	job.Index = i
@@ -60,11 +61,6 @@ func (q *Queue) insert(job *UpdateJob) {
 
 func (q *Queue) remove(i int) {
 	job := q.Jobs[i]
-	if job.Remove {
-		delete(q.removesByChecklist, job.Checklist.Id)
-	} else {
-		delete(q.addsByChecklist, job.Checklist.Id)
-	}
 
 	q.Size--
 	q.Jobs[i] = q.Jobs[q.Size]
@@ -108,21 +104,57 @@ func (q *Queue) remove(i int) {
 	}
 }
 
-func (q *Queue) Pop(now *time.Time) *UpdateJob {
+func (q *Queue) Pop(now *time.Time) (*UpdateJob, *errors.PreflightError) {
 	if q.Size == 0 || q.Jobs[0].Time.After(*now) {
-		return nil
+		return nil, nil
 	} else {
 		job := q.Jobs[0]
 		q.remove(0)
-		return job
+		if job.Remove == false && job.Checklist.IsScheduled {
+			t, err := job.Checklist.Schedule.NextAdd(*now)
+			if err != nil {
+				return job, err.Prepend("persistence.Queue.Pop: " +
+					"error scheduling next add: ")
+			}
+			q.insert(&UpdateJob{
+				Time: t,
+				Checklist: job.Checklist,
+				User: job.User,
+			})
+		}
+		return job, nil
 	}
 }
 
-func (q *Queue) AddChecklist(u *user.User, cl *checklist.Checklist, now *time.Time) *errors.PreflightError {
-	q.addsByChecklist[cl.Id] = nil
-	q.removesByChecklist[cl.Id] = nil
+func (q *Queue) SetChecklist(u *user.User, cl *checklist.Checklist, now *time.Time) *errors.PreflightError {
+	tracker, found := q.trackersByChecklist[cl.Id]
+	var prev *checklist.Checklist
+	if found {
+		prev = tracker.Checklist
+		tracker.Checklist = cl
+		if ! cl.IsScheduled && tracker.AddJob != nil {
+			q.remove(tracker.AddJob.Index)
+			tracker.AddJob = nil
+		}
+	} else {
+		tracker = &checklistTracker{
+			User: u,
+			Checklist: cl,
+		}
+		q.trackersByChecklist[cl.Id] = tracker
 
-	if cl.IsScheduled {
+		trackers, userFound := q.trackersByUser[u.GetId()]
+		if ! userFound {
+			q.trackersByUser[u.GetId()] = make([]*checklistTracker, 0, 1)
+		}
+		q.trackersByUser[u.GetId()] = append(trackers, tracker)
+	}
+
+	if cl.IsScheduled && ! (found && cl.Schedule.Equals(prev.Schedule)) {
+		if tracker.AddJob != nil {
+			q.remove(tracker.AddJob.Index)
+		}
+
 		t, err := cl.Schedule.NextAdd(*now)
 		if err != nil {
 			return err.Prepend("scheduler.Queue.AddChecklist: error getting add time: ")
@@ -133,33 +165,51 @@ func (q *Queue) AddChecklist(u *user.User, cl *checklist.Checklist, now *time.Ti
 			User: u,
 		}
 		q.insert(job)
+		tracker.AddJob = job
 	}
 
 	return nil
 }
 
-func (q *Queue) AddUser(u *user.User, now *time.Time) {
-	for _, cl := range u.Checklists {
-		job, found := q.addsByChecklist[cl.Id]
-		if found && job != nil {
-			job.User = u
+func (q *Queue) RemoveChecklist(id string) {
+	tracker, found := q.trackersByChecklist[id]
+	if found {
+		trackers, _ := q.trackersByUser[tracker.User.GetId()]
+		for i, tr := range trackers {
+			if tr == tracker {
+				trackers[i] = trackers[len(trackers)-1]
+				q.trackersByUser[tracker.User.GetId()] = trackers[:len(trackers)-1]
+				break
+			}
 		}
-		job, found = q.removesByChecklist[cl.Id]
-		if found && job != nil {
-			job.User = u
+
+		if tracker.AddJob != nil {
+			q.remove(tracker.AddJob.Index)
+		}
+		delete(q.trackersByChecklist, id)
+	}
+}
+
+func (q *Queue) SetUser(u *user.User, now *time.Time) {
+	for _, cl := range u.Checklists {
+		tracker, found := q.trackersByChecklist[cl.Id]
+		if found && tracker != nil {
+			tracker.User = u
+			if tracker.AddJob != nil {
+				tracker.AddJob.User = u
+			}
+			if tracker.RemoveJob != nil {
+				tracker.RemoveJob.User = u
+			}
 		}
 	}
 }
 
-/*
-func (q *Queue) RemoveChecklist(id string) {
-	//TODO
-}
-
 func (q *Queue) RemoveUser(id string) {
-	//TODO
+	delete(q.trackersByUser, id)
 }
 
+/*
 func Schedule(updateChannel chan *user.UserDelta) {
 	//TODO
 }
