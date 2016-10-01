@@ -160,3 +160,68 @@ func TestChecklistChange(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestUserChange(t *testing.T) {
+	emailBefore := "before@preflight.com"
+	emailAfter := "after@preflight.com"
+	userBefore, pErr := user.New(emailBefore, "pass")
+	if pErr != nil {
+		t.Fatal(pErr)
+	}
+	userAfter := &(*userBefore)
+	userAfter.Email = emailAfter
+
+	cl := &checklist.Checklist{
+		Name: "foo",
+		IsScheduled: true,
+		Schedule: &checklist.Schedule{
+			Start: "9:00",
+		},
+	}
+	userBefore.Checklists = append(userBefore.Checklists, cl)
+	userAfter.Checklists = append(userAfter.Checklists, cl)
+
+	format := "2006-01-02 15:04:05"
+	location, err := time.LoadLocation("America/Denver")
+	if err != nil {
+		t.Fatal(err)
+	}
+	monday, err := time.ParseInLocation(format, "2016-09-26 12:00:00", location)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tuesday := monday.AddDate(0, 0, 1)
+	wednesday := monday.AddDate(0, 0, 2)
+
+	q := NewQueue()
+	q.SetUser(userBefore, &monday)
+	q.SetChecklist(userBefore, cl, &monday)
+	jobBefore, pErr := q.Pop(&tuesday)
+	if pErr != nil {
+		t.Fatal(pErr)
+	}
+	q.SetUser(userAfter, &tuesday)
+	jobAfter, pErr := q.Pop(&wednesday)
+	if pErr != nil {
+		t.Fatal(pErr)
+	}
+
+	if jobBefore == nil {
+		t.Log("failure on pop before change: got nil, expected \"before\"")
+		t.Fail()
+	} else if jobBefore.User == nil {
+		t.Log("failure on pop before change: got job with nil user, expected \"before\"")
+		t.Fail()
+	}
+	if jobAfter == nil {
+		t.Log("failure on pop after change: got nil, expected \"after\"")
+		t.Fail()
+	} else if jobAfter.User == nil {
+		t.Log("failure on pop after change: got job with nil user, expected \"after\"")
+		t.Fail()
+	} else if jobAfter.User.Email != emailAfter {
+		t.Logf("failure on pop after change: got job with wrong user, expected \"after\", " +
+			"got \"%s\"\n", jobAfter.User.Email)
+		t.Fail()
+	}
+}
