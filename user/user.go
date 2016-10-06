@@ -3,6 +3,8 @@ package user
 import (
 	"github.com/jsutton9/preflight/api/errors"
 	"github.com/jsutton9/preflight/checklist"
+	"github.com/jsutton9/preflight/clients/todoist"
+	"github.com/jsutton9/preflight/clients/trello"
 	"github.com/jsutton9/preflight/security"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -35,7 +37,7 @@ func (u *User) GetId() string {
 func New(email, password string) (*User, *errors.PreflightError) {
 	security, err := security.New(password)
 	if err != nil {
-		return nil, err.Prepend("persistence.Persister.AddUser: error creating security: ")
+		return nil, err.Prepend("user.New: error creating security: ")
 	}
 
 	newUser := User{
@@ -49,11 +51,44 @@ func New(email, password string) (*User, *errors.PreflightError) {
 	return &newUser, nil
 }
 
-/*
-func (u *User) Invoke(name, trelloKey string) *errors.PreflightError {
-	//TODO
+func (u *User) Invoke(name, trelloKey string) ([]int, *errors.PreflightError) {
+	cl, found := u.Checklists[name]
+	if ! found {
+		return &errors.PreflightError{
+			Status: 404,
+			InternalMessage: "commands.Invoke: checklist \""+name+"\" not found",
+			ExternalMessage: "Checklist \""+name+"\" not found",
+		}
+	}
+
+	todoistClient := todoist.New(u.Security.Todoist)
+	trelloClient := trello.New(u.Security.Trello, trelloKey, u.Settings.TrelloBoard)
+	ids, err := cl.PostTasks(todoistClient, trelloClient)
+	if err != nil {
+		return ids, err.Prepend("user.User.Invoke: error posting tasks: ")
+	}
+
+	return ids, nil
 }
-*/
+
+func (u *User) DeleteTasks(name string, ids []int) *errors.PreflightError {
+	cl, found := u.Checklists[name]
+	if ! found {
+		return &errors.PreflightError{
+			Status: 404,
+			InternalMessage: "commands.DeleteTasks: checklist \""+name+"\" not found",
+			ExternalMessage: "Checklist \""+name+"\" not found",
+		}
+	}
+
+	todoistClient := todoist.New(u.Security.Todoist)
+	err := cl.DeleteTasks(todoistClient, ids)
+	if err != nil {
+		return err.Prepend("user.User.DeleteTasks: error deleting tasks: ")
+	}
+
+	return nil
+}
 
 func (oldUser *User) GetDelta(newUser *User) *UserDelta {
 	if oldUser == nil && newUser == nil {
